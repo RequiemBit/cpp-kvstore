@@ -177,6 +177,30 @@ src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
+src/wal_logger.o: src/wal_logger.cpp.o
+.PHONY : src/wal_logger.o
+
+# target to build an object file
+src/wal_logger.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/wal_logger.cpp.o
+.PHONY : src/wal_logger.cpp.o
+
+src/wal_logger.i: src/wal_logger.cpp.i
+.PHONY : src/wal_logger.i
+
+# target to preprocess a source file
+src/wal_logger.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/wal_logger.cpp.i
+.PHONY : src/wal_logger.cpp.i
+
+src/wal_logger.s: src/wal_logger.cpp.s
+.PHONY : src/wal_logger.s
+
+# target to generate assembly for a file
+src/wal_logger.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/wal_logger.cpp.s
+.PHONY : src/wal_logger.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -192,6 +216,9 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
+	@echo "... src/wal_logger.o"
+	@echo "... src/wal_logger.i"
+	@echo "... src/wal_logger.s"
 .PHONY : help
 
 

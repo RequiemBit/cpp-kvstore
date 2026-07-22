@@ -81,12 +81,12 @@ clean: CMakeFiles/kv_server.dir/clean
 CMakeFiles/kv_server.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/requiem/kvstore/build/CMakeFiles --progress-num=1,2,3 "Built target kv_server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/requiem/kvstore/build/CMakeFiles --progress-num=1,2,3,4 "Built target kv_server"
 .PHONY : CMakeFiles/kv_server.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/kv_server.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/requiem/kvstore/build/CMakeFiles 3
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/requiem/kvstore/build/CMakeFiles 4
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/kv_server.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/requiem/kvstore/build/CMakeFiles 0
 .PHONY : CMakeFiles/kv_server.dir/rule

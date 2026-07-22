@@ -1,54 +1,37 @@
 #include <iostream>
 #include <string>
+#include <cstdlib> // 用于 abort()
 #include "kv_engine.h"
 
 int main() {
-    std::cout << "Starting KVStore Engine Test..." << std::endl;
+    // 1. 初始化 KV 引擎，指定日志文件路径
+    KVEngine<std::string, std::string> engine("./wal.log");
 
-    // 创建一个基于 string-key, string-value 的引擎
-    KVEngine<std::string, std::string> engine;
+    std::cout << "==============================" << std::endl;
+    std::cout << "  KV Engine Started!          " << std::endl;
+    std::cout << "==============================" << std::endl;
 
-    // 1. 测试插入 (Put)
-    std::cout << "\n--- Inserting Data ---" << std::endl;
-    engine.put("apple", "fruit");
-    engine.put("banana", "yellow fruit");
-    engine.put("carrot", "vegetable");
-    engine.put("dog", "animal");
-    
-    // 打印内部结构看看层级分布
-    engine.debug_print();
-
-    // 2. 测试查询 (Get)
-    std::cout << "\n--- Querying Data ---" << std::endl;
-    std::string result;
-    if (engine.get("banana", result)) {
-        std::cout << "Found banana: " << result << std::endl;
+    // 2. 尝试读取之前的数据（如果是崩溃后重启，这里应该能读到）
+    std::string value;
+    if (engine.get("name", value)) {
+        std::cout << "[Recovery Success] Found 'name': " << value << std::endl;
     } else {
-        std::cout << "Banana not found!" << std::endl;
+        std::cout << "[Info] No previous data found, this is a fresh start." << std::endl;
     }
 
-    if (engine.get("cat", result)) {
-        std::cout << "Found cat: " << result << std::endl;
-    } else {
-        std::cout << "Cat not found (Expected)." << std::endl;
-    }
+    // 3. 写入新数据
+    std::cout << "\n[Action] Writing new data to KV Engine..." << std::endl;
+    engine.put("name", "requiem");
+    engine.put("project", "kv-store");
+    engine.put("status", "WAL-Tested");
 
-    // 3. 测试更新 (Update / Overwrite)
-    std::cout << "\n--- Updating Data ---" << std::endl;
-    engine.put("apple", "red fruit"); // 更新 apple 的值
-    engine.get("apple", result);
-    std::cout << "Updated apple: " << result << std::endl;
+    std::cout << "[Action] Data written to memory and WAL log!" << std::endl;
 
-    // 4. 测试删除 (Erase)
-    std::cout << "\n--- Deleting Data ---" << std::endl;
-    engine.erase("carrot");
-    if (!engine.get("carrot", result)) {
-        std::cout << "Carrot successfully deleted." << std::endl;
-    }
+    // 4. 模拟系统崩溃（断电 / OOM / 被 kill -9）
+    // 注意：这会导致程序瞬间死亡，跳过所有清理工作！
+    std::cout << "\n[Simulating Crash] Calling abort() to simulate power loss..." << std::endl;
 
-    // 再次打印查看删除后的结构
-    engine.debug_print();
-
-    std::cout << "\nAll tests passed!" << std::endl;
+    // 如果注释掉上面的 std::abort()，程序就会正常退出。
+    // 正常退出时，数据依然在 wal.log 中，下次启动同样能恢复。
     return 0;
 }

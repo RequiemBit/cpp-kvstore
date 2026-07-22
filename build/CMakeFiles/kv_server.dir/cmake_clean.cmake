@@ -3,6 +3,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/kv_server.dir/src/kv_engine.cpp.o.d"
   "CMakeFiles/kv_server.dir/src/main.cpp.o"
   "CMakeFiles/kv_server.dir/src/main.cpp.o.d"
+  "CMakeFiles/kv_server.dir/src/wal_logger.cpp.o"
+  "CMakeFiles/kv_server.dir/src/wal_logger.cpp.o.d"
   "kv_server"
   "kv_server.pdb"
 )
