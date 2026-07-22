@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/requiem/kvstore/include
 
-CXX_FLAGS = -std=gnu++17 -Wall -Wextra -pedantic
+CXX_FLAGS = -std=gnu++17 -Wall -Wextra -pedantic -O2
 
