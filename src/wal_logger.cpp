@@ -5,7 +5,6 @@
 // --- CRC32 静态计算模块 ---
 static uint32_t crc32_table[256];
 static bool crc32_initialized = false;
-
 static void init_crc32() {
     if (crc32_initialized) return;
     for (uint32_t i = 0; i < 256; i++) {
@@ -42,6 +41,7 @@ WalLogger::~WalLogger() {
     }
 }
 
+// 校验数据是否有效
 uint32_t WalLogger::CalculateChecksum(LogHeader header, const Slice& key, const Slice& value) {
     // 核心点：强制把 checksum 置 0 再计算，确保序列化与反序列化时计算依据完全一致
     header.checksum = 0;
@@ -77,6 +77,7 @@ bool WalLogger::Append(OperationType op, const Slice& key, const Slice& value) {
     return ofs_.good();
 }
 
+// 将数据存到磁盘，没调用过？
 void WalLogger::Sync() {
     if (!ofs_.is_open()) return;
     
@@ -85,6 +86,7 @@ void WalLogger::Sync() {
     // 可以在需要绝对安全时，通过底层系统调用或者平台 API 执行物理落盘
 }
 
+// 通过wallog恢复数据
 std::vector<ParsedLogRecord> WalLogger::Recover() {
     std::vector<ParsedLogRecord> records;
 

@@ -55,3 +55,19 @@
 ### Changed (变更)
 - **核心接口升级**：将底层日志模块 (`WalLogger`) 的写入接口参数从 `std::string` 替换为 `Slice`，全面拥抱零拷贝范式，显著提升数据交互性能。
 - **架构解耦**：将数据视图 (`Slice`) 与数据持久化 (`WalLogger`) 彻底解耦，提升了代码的模块化程度与未来的可扩展性。
+
+
+## [0.4.0] - 2026-07-23
+
+### Added (新增)
+- **SSTable 核心组件**：新增 `SSTableBuilder` 与 `SSTableReader` 类，完整实现了 LSM-Tree 架构中磁盘有序表（SSTable）的读写闭环。
+- **Data Block 自动切分**：Builder 支持在内存中按配置阈值（如 128 Bytes）动态切分 Data Block，保证文件内部数据的紧凑性与有序性。
+- **Index Block 与 Footer 机制**：实现了索引块的自动生成与固定长度 Footer（24 Bytes）的落盘，为 SSTable 提供了可靠的元数据“锚点”。
+- **二分查找与随机读**：Reader 支持基于 Footer 定位索引，并通过二分查找算法在磁盘文件中实现极速的 Key 检索。
+- **全量读写一致性验证**：新增专项集成测试，成功验证了 100 条有序数据的写入、随机读取以及不存在 Key 的边界处理逻辑。
+
+### Changed (变更)
+- **核心架构升级**：项目正式迈入 LSM-Tree 阶段三（MemTable 刷盘与 SSTable 文件设计），打通了从内存数据结构到磁盘持久化文件的核心链路。
+- **构建系统同步**：更新 CMakeLists.txt 配置，将新增的 `sstable_builder.cpp` 等核心模块无缝接入编译流水线，支持外部构建（Out-of-source build）。
+
+

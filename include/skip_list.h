@@ -2,7 +2,8 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <functional> // for std::hash (optional)
+#include <functional>
+#include <utility> // for std::pair
 
 // 跳表的节点
 template<typename K, typename V>
@@ -24,8 +25,10 @@ private:
     int max_level;
     // 当前层数            
     int current_level;        
+    // 节点总数记录（新增：用于 O(1) 获取 size）
+    size_t node_count_;
     
-    // 优化：静态随机数引擎，避免每次创建对象都初始化庞大的 mt19937 状态
+    // 静态随机数引擎
     static std::mt19937 gen;
     static std::uniform_real_distribution<> dis;
 
@@ -39,18 +42,49 @@ private:
 
 public:
     explicit SkipList(int max_lvl = 16) 
-        : max_level(max_lvl), current_level(1) {
+        : max_level(max_lvl), current_level(1), node_count_(0) {
         // 构造一个空的头节点，不存真实数据
         head = new SkipListNode<K, V>(K(), V(), max_level);
     }
 
     ~SkipList() {
-        SkipListNode<K, V>* curr = head;
+        clear();
+        delete head;
+    }
+
+    // --- 新增 1：获取节点总数 ---
+    size_t size() const {
+        return node_count_;
+    }
+
+    // --- 新增 2：清空所有节点（Flush 刷盘后重置 MemTable）---
+    void clear() {
+        SkipListNode<K, V>* curr = head->forward[0];
         while (curr != nullptr) {
             SkipListNode<K, V>* next = curr->forward[0];
             delete curr;
             curr = next;
         }
+        // 重置头节点指向与层级
+        for (int i = 0; i < max_level; ++i) {
+            head->forward[i] = nullptr;
+        }
+        current_level = 1;
+        node_count_ = 0;
+    }
+
+    // --- 新增 3：导出所有 KV 对（按 Key 升序，用于 Flush 生成 SSTable）---
+    std::vector<std::pair<K, V>> dump_all() const {
+        std::vector<std::pair<K, V>> result;
+        result.reserve(node_count_);
+        
+        // 第 0 层包含所有的节点且天然有序
+        SkipListNode<K, V>* curr = head->forward[0];
+        while (curr != nullptr) {
+            result.emplace_back(curr->key, curr->value);
+            curr = curr->forward[0];
+        }
+        return result;
     }
 
     // 插入节点
@@ -87,6 +121,9 @@ public:
             new_node->forward[i] = update[i]->forward[i];
             update[i]->forward[i] = new_node;
         }
+
+        // 维护节点总数
+        node_count_++;
     }
 
     // 查
@@ -130,37 +167,23 @@ public:
             while (current_level > 1 && head->forward[current_level - 1] == nullptr) {
                 current_level--;
             }
+
+            // 维护节点总数
+            node_count_--;
             return true;
         }
         return false;
     }
     
-    // // 辅助函数：打印跳表结构（调试用）
-    // void display() const {
-    //     std::cout << "=== SkipList Content ===" << std::endl;
-    //     for (int i = 0; i < current_level; ++i) {
-    //         std::cout << "Level " << i << ": ";
-    //         SkipListNode<K, V>* node = head->forward[i];
-    //         while (node != nullptr) {
-    //             std::cout << "[" << node->key << ":" << node->value << "] -> ";
-    //             node = node->forward[i];
-    //         }
-    //         std::cout << "NULL" << std::endl;
-    //     }
-    //     std::cout << "========================" << std::endl;
-    // }
-
-    // 在 SkipList 类的 public 部分添加此方法
+    // 打印跳表结构（调试用）
     void display() const {
         std::cout << "\n=== SkipList Structure (Top-Down) ===" << std::endl;
         
-        // 从最高层向下遍历
         for (int i = current_level - 1; i >= 0; --i) {
             std::cout << "Level " << i << ": HEAD";
             
             SkipListNode<K, V>* curr = head->forward[i];
             while (curr != nullptr) {
-                // 格式化输出: [key:value]
                 std::cout << " -> [" << curr->key << ":" << curr->value << "]";
                 curr = curr->forward[i];
             }
@@ -168,10 +191,9 @@ public:
         }
         std::cout << "=====================================\n" << std::endl;
     }
-  
 };
 
-// 静态成员变量必须在类外定义
+// 静态成员变量类外定义
 template<typename K, typename V>
 std::mt19937 SkipList<K, V>::gen(std::random_device{}());
 
