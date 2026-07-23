@@ -1,6 +1,7 @@
 #ifndef WAL_LOGGER_H
 #define WAL_LOGGER_H
 
+#include "slice.h"
 #include <string>
 #include <fstream>
 #include <cstdint>
@@ -40,8 +41,8 @@ public:
     explicit WalLogger(const std::string& log_path);
     ~WalLogger();
 
-    // 写入一条日志到磁盘
-    bool Append(OperationType op, const std::string& key, const std::string& value);
+    // 写入一条日志到磁盘（升级为 Slice 参数，支持零拷贝）
+    bool Append(OperationType op, const Slice& key, const Slice& value = Slice());
 
     // 从磁盘读取所有有效日志用于恢复
     std::vector<ParsedLogRecord> Recover();
@@ -56,7 +57,7 @@ private:
     std::ofstream ofs_;
     
     // 算 CRC32 辅助函数（保证 checksum = 0 计算）
-    uint32_t CalculateChecksum(LogHeader header, const std::string& key, const std::string& value);
+    uint32_t CalculateChecksum(LogHeader header, const Slice& key, const Slice& value);
 };
 
 #endif // WAL_LOGGER_H

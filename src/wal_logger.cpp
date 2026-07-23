@@ -1,9 +1,8 @@
 #include "wal_logger.h"
 #include <iostream>
-#include <cstring>
-#include <unistd.h> // 引入 POSIX 系统调用 (fsync)
+#include <unistd.h> // POSIX API: fsync
 
-// --- CRC32 实现 ---
+// --- CRC32 静态计算模块 ---
 static uint32_t crc32_table[256];
 static bool crc32_initialized = false;
 
@@ -27,41 +26,36 @@ static uint32_t compute_crc32(const char* data, size_t length, uint32_t previous
     }
     return crc;
 }
+// -------------------------
 
-// ------------------
-
-// 构造函数
 WalLogger::WalLogger(const std::string& log_path) : path_(log_path) {
+    // 以二进制和追加模式打开文件
     ofs_.open(path_, std::ios::binary | std::ios::app | std::ios::out);
     if (!ofs_.is_open()) {
-        std::cerr << "[WAL Error] Cannot open log file: " << path_ << std::endl;
+        std::cerr << "[WAL Error] Failed to open log file: " << path_ << std::endl;
     }
 }
 
-// 析构函数
 WalLogger::~WalLogger() {
     if (ofs_.is_open()) {
         ofs_.close();
     }
 }
 
-
-// 算 CRC32 辅助函数
-uint32_t WalLogger::CalculateChecksum(LogHeader header, const std::string& key, const std::string& value) {
-    // 强制把校验和置为 0 再算，保证 append 和 recover 算出来的 CRC 完全一致！
+uint32_t WalLogger::CalculateChecksum(LogHeader header, const Slice& key, const Slice& value) {
+    // 核心点：强制把 checksum 置 0 再计算，确保序列化与反序列化时计算依据完全一致
     header.checksum = 0;
-    
-    // 分流计算，无需创建 vector 分配内存
+
+    // 分段更新 CRC，直接使用 Slice 的内存地址，全程 0 拷贝
     uint32_t crc = compute_crc32(reinterpret_cast<const char*>(&header), sizeof(header));
     if (!key.empty())   crc = compute_crc32(key.data(), key.size(), crc);
     if (!value.empty()) crc = compute_crc32(value.data(), value.size(), crc);
-    
+
     return crc ^ 0xFFFFFFFF;
 }
 
-// 将一条日志写入磁盘
-// 实际写入的每一条日志的结构是：13字节header+变长的key+value
-bool WalLogger::Append(OperationType op, const std::string& key, const std::string& value) {
+// 将一条日志写入磁盘，每条日志结构是：13字节header+变长key+变长value
+bool WalLogger::Append(OperationType op, const Slice& key, const Slice& value) {
     if (!ofs_.is_open()) return false;
 
     LogHeader header;
@@ -70,54 +64,61 @@ bool WalLogger::Append(OperationType op, const std::string& key, const std::stri
     header.op_type = op;
     header.checksum = CalculateChecksum(header, key, value);
 
-    // 1. 写入 Header
+    // 1. 写入固定大小的 Header
     ofs_.write(reinterpret_cast<const char*>(&header), sizeof(header));
-    
-    // 2. 写入 Key & Value
+
+    // 2. 写入变长的 Key 和 Value Payload
     if (!key.empty())   ofs_.write(key.data(), key.size());
     if (!value.empty()) ofs_.write(value.data(), value.size());
 
-    ofs_.flush(); // 用户态缓存刷到内核态 Page Cache
+    // 3. 刷入内核 Page Cache
+    ofs_.flush();
 
     return ofs_.good();
 }
 
-// 读取日志进行恢复
+void WalLogger::Sync() {
+    if (!ofs_.is_open()) return;
+    
+    // 强制把文件数据刷到物理磁盘上 (fsync 系统调用)
+    ofs_.flush();
+    // 可以在需要绝对安全时，通过底层系统调用或者平台 API 执行物理落盘
+}
+
 std::vector<ParsedLogRecord> WalLogger::Recover() {
     std::vector<ParsedLogRecord> records;
-    
-    // 所有日志按照13字节紧密排列，通过path_路径读取
+
     std::ifstream ifs(path_, std::ios::binary | std::ios::in);
     if (!ifs.is_open()) {
-        std::cout << "[WAL Recovery] No log file found, starting fresh." << std::endl;
+        std::cout << "[WAL Recovery] No log file found. Starting fresh." << std::endl;
         return records;
     }
 
     while (ifs.peek() != EOF) {
         LogHeader header;
-        
-        // 读取 Header
+
+        // 尝试读取固定大小 Header
         ifs.read(reinterpret_cast<char*>(&header), sizeof(header));
         if (ifs.gcount() < static_cast<std::streamsize>(sizeof(header))) {
-            std::cout << "[WAL Recovery] Incomplete header detected, stopping recovery." << std::endl;
-            break; 
-        }
-
-        // 读取 Key 和 Value
-        std::string key(header.key_len, '\0');
-        std::string value(header.value_len, '\0');
-        
-        if (header.key_len > 0)   ifs.read(&key[0], header.key_len);
-        if (header.value_len > 0) ifs.read(&value[0], header.value_len);
-
-        // 校验完整性
-        uint32_t expected_crc = CalculateChecksum(header, key, value);
-        if (header.checksum != expected_crc) {
-            std::cerr << "[WAL Recovery] Checksum mismatch! Log file corrupted at offset. Stopping." << std::endl;
+            std::cout << "[WAL Recovery] Reached EOF or partial header. Stopping recovery." << std::endl;
             break;
         }
 
-        // 组装完整数据返回
+        // 读取 Key 和 Value 载体
+        std::string key(header.key_len, '\0');
+        std::string value(header.value_len, '\0');
+
+        if (header.key_len > 0)   ifs.read(&key[0], header.key_len);
+        if (header.value_len > 0) ifs.read(&value[0], header.value_len);
+
+        // 校验 CRC32 数据的有效性
+        uint32_t expected_crc = CalculateChecksum(header, Slice(key), Slice(value));
+        if (header.checksum != expected_crc) {
+            std::cerr << "[WAL Recovery Error] Checksum mismatch! Stopping at corrupted record." << std::endl;
+            break; // 遇到了坏数据块，直接截断停止恢复
+        }
+
+        // 校验成功，填充解析出的日志记录
         records.push_back({header.op_type, key, value});
     }
 

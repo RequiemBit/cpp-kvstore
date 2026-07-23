@@ -4,10 +4,12 @@
 #include <random>
 #include <functional> // for std::hash (optional)
 
+// 跳表的节点
 template<typename K, typename V>
 struct SkipListNode {
     K key;
     V value;
+    // 存储在第i层的大于value的节点的指针
     std::vector<SkipListNode*> forward; 
 
     SkipListNode(const K& k, const V& v, int level)
@@ -17,8 +19,10 @@ struct SkipListNode {
 template<typename K, typename V>
 class SkipList {
 private:
-    SkipListNode<K, V>* head; 
-    int max_level;            
+    SkipListNode<K, V>* head;
+    // 最大高度 
+    int max_level;
+    // 当前层数            
     int current_level;        
     
     // 优化：静态随机数引擎，避免每次创建对象都初始化庞大的 mt19937 状态
@@ -49,6 +53,7 @@ public:
         }
     }
 
+    // 插入节点
     void put(const K& key, const V& value) {
         std::vector<SkipListNode<K, V>*> update(max_level, nullptr);
         SkipListNode<K, V>* curr = head;
@@ -84,6 +89,7 @@ public:
         }
     }
 
+    // 查
     bool get(const K& key, V& out_value) const {
         SkipListNode<K, V>* curr = head;
         for (int i = current_level - 1; i >= 0; --i) {
@@ -99,6 +105,7 @@ public:
         return false;
     }
 
+    // 删除节点
     bool erase(const K& key) {
         std::vector<SkipListNode<K, V>*> update(max_level, nullptr);
         SkipListNode<K, V>* curr = head;

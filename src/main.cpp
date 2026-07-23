@@ -1,37 +1,64 @@
 #include <iostream>
-#include <string>
-#include <cstdlib> // 用于 abort()
-#include "kv_engine.h"
+#include <vector>
+#include <cassert>
+#include "slice.h"
+#include "wal_logger.h"
 
 int main() {
-    // 1. 初始化 KV 引擎，指定日志文件路径
-    KVEngine<std::string, std::string> engine("./wal.log");
+    std::cout << "=== 开始测试 Slice 与 WalLogger 集成 ===" << std::endl;
 
-    std::cout << "==============================" << std::endl;
-    std::cout << "  KV Engine Started!          " << std::endl;
-    std::cout << "==============================" << std::endl;
+    // 1. 初始化 WAL 日志器
+    WalLogger logger("./test_wal.log");
 
-    // 2. 尝试读取之前的数据（如果是崩溃后重启，这里应该能读到）
-    std::string value;
-    if (engine.get("name", value)) {
-        std::cout << "[Recovery Success] Found 'name': " << value << std::endl;
-    } else {
-        std::cout << "[Info] No previous data found, this is a fresh start." << std::endl;
+    // 2. 测试用例数据（包含正常字符串、空字符串、包含'\0'的二进制数据）
+    struct TestCase {
+        OperationType op;
+        std::string key;
+        std::string value;
+    };
+
+    std::vector<TestCase> test_cases = {
+        {OperationType::PUT, "normal_key", "normal_value"},
+        {OperationType::PUT, "empty_value_key", ""},      // 测试空 Value
+        {OperationType::PUT, "", "empty_key_value"},      // 测试空 Key
+        {OperationType::ERASE, "to_be_deleted", ""},      // 测试删除操作
+        {OperationType::PUT, "binary_key", std::string("val\0ue", 6)} // 测试包含 '\0' 的二进制数据
+    };
+
+    // 3. 使用 Slice 进行写入测试
+    std::cout << "[Test] 写入数据中..." << std::endl;
+    for (const auto& tc : test_cases) {
+        // 将 std::string 隐式转换为 Slice（零拷贝）
+        Slice key_slice(tc.key);
+        Slice val_slice(tc.value);
+        
+        bool success = logger.Append(tc.op, key_slice, val_slice);
+        assert(success && "写入 WAL 失败！");
+    }
+    std::cout << "[Test] 写入成功，共 " << test_cases.size() << " 条记录。" << std::endl;
+
+    // 4. 读取并验证恢复的数据
+    std::cout << "[Test] 开始恢复数据..." << std::endl;
+    auto records = logger.Recover();
+    
+    assert(records.size() == test_cases.size() && "恢复的记录数量不匹配！");
+
+    for (size_t i = 0; i < records.size(); ++i) {
+        const auto& rec = records[i];
+        const auto& expected = test_cases[i];
+        
+        // 验证操作类型
+        assert(rec.op == expected.op && "操作类型不匹配！");
+        // 验证 Key（将恢复出的 Slice 转回 string 进行比较）
+        assert(rec.key == expected.key && "Key 不匹配！");
+        // 验证 Value
+        assert(rec.value == expected.value && "Value 不匹配！");
+        
+        std::cout << "  -> 验证通过: Op=" << (int)rec.op 
+                  << ", Key=\"" << rec.key << "\"" 
+                  << ", Value=\"" << rec.value << "\"" << std::endl;
     }
 
-    // 3. 写入新数据
-    std::cout << "\n[Action] Writing new data to KV Engine..." << std::endl;
-    engine.put("name", "requiem");
-    engine.put("project", "kv-store");
-    engine.put("status", "WAL-Tested");
-
-    std::cout << "[Action] Data written to memory and WAL log!" << std::endl;
-
-    // 4. 模拟系统崩溃（断电 / OOM / 被 kill -9）
-    // 注意：这会导致程序瞬间死亡，跳过所有清理工作！
-    std::cout << "\n[Simulating Crash] Calling abort() to simulate power loss..." << std::endl;
-
-    // 如果注释掉上面的 std::abort()，程序就会正常退出。
-    // 正常退出时，数据依然在 wal.log 中，下次启动同样能恢复。
+    std::cout << "\n🎉 恭喜！所有 Slice 与 WalLogger 集成测试全部通过！" << std::endl;
     return 0;
 }
