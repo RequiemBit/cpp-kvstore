@@ -38,6 +38,7 @@ struct ParsedLogRecord {
 
 class WalLogger {
 public:
+    // 构造时候使用追加模式打开ofs
     explicit WalLogger(const std::string& log_path);
     ~WalLogger();
 

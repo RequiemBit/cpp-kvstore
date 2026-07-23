@@ -10,6 +10,8 @@ set(CMAKE_DEPENDS_LANGUAGES
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/requiem/kvstore/src/kv_engine.cpp" "CMakeFiles/kv_server.dir/src/kv_engine.cpp.o" "gcc" "CMakeFiles/kv_server.dir/src/kv_engine.cpp.o.d"
   "/home/requiem/kvstore/src/main.cpp" "CMakeFiles/kv_server.dir/src/main.cpp.o" "gcc" "CMakeFiles/kv_server.dir/src/main.cpp.o.d"
+  "/home/requiem/kvstore/src/sstable_builder.cpp" "CMakeFiles/kv_server.dir/src/sstable_builder.cpp.o" "gcc" "CMakeFiles/kv_server.dir/src/sstable_builder.cpp.o.d"
+  "/home/requiem/kvstore/src/sstable_reader.cpp" "CMakeFiles/kv_server.dir/src/sstable_reader.cpp.o" "gcc" "CMakeFiles/kv_server.dir/src/sstable_reader.cpp.o.d"
   "/home/requiem/kvstore/src/wal_logger.cpp" "CMakeFiles/kv_server.dir/src/wal_logger.cpp.o" "gcc" "CMakeFiles/kv_server.dir/src/wal_logger.cpp.o.d"
   )
 

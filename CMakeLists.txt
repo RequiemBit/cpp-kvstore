@@ -14,6 +14,8 @@ add_executable(kv_server
     src/main.cpp
     src/kv_engine.cpp
     src/wal_logger.cpp
+    src/sstable_builder.cpp
+    src/sstable_reader.cpp
     # 如果未来有 slice.cpp 实现，请在这里添加 src/slice.cpp
     # 目前 Slice 是纯头文件实现，不需要编译单元
 )

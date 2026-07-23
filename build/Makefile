@@ -177,6 +177,54 @@ src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
+src/sstable_builder.o: src/sstable_builder.cpp.o
+.PHONY : src/sstable_builder.o
+
+# target to build an object file
+src/sstable_builder.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_builder.cpp.o
+.PHONY : src/sstable_builder.cpp.o
+
+src/sstable_builder.i: src/sstable_builder.cpp.i
+.PHONY : src/sstable_builder.i
+
+# target to preprocess a source file
+src/sstable_builder.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_builder.cpp.i
+.PHONY : src/sstable_builder.cpp.i
+
+src/sstable_builder.s: src/sstable_builder.cpp.s
+.PHONY : src/sstable_builder.s
+
+# target to generate assembly for a file
+src/sstable_builder.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_builder.cpp.s
+.PHONY : src/sstable_builder.cpp.s
+
+src/sstable_reader.o: src/sstable_reader.cpp.o
+.PHONY : src/sstable_reader.o
+
+# target to build an object file
+src/sstable_reader.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_reader.cpp.o
+.PHONY : src/sstable_reader.cpp.o
+
+src/sstable_reader.i: src/sstable_reader.cpp.i
+.PHONY : src/sstable_reader.i
+
+# target to preprocess a source file
+src/sstable_reader.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_reader.cpp.i
+.PHONY : src/sstable_reader.cpp.i
+
+src/sstable_reader.s: src/sstable_reader.cpp.s
+.PHONY : src/sstable_reader.s
+
+# target to generate assembly for a file
+src/sstable_reader.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_reader.cpp.s
+.PHONY : src/sstable_reader.cpp.s
+
 src/wal_logger.o: src/wal_logger.cpp.o
 .PHONY : src/wal_logger.o
 
@@ -216,6 +264,12 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
+	@echo "... src/sstable_builder.o"
+	@echo "... src/sstable_builder.i"
+	@echo "... src/sstable_builder.s"
+	@echo "... src/sstable_reader.o"
+	@echo "... src/sstable_reader.i"
+	@echo "... src/sstable_reader.s"
 	@echo "... src/wal_logger.o"
 	@echo "... src/wal_logger.i"
 	@echo "... src/wal_logger.s"

@@ -1,64 +1,60 @@
+#include "sstable_builder.h"
+#include "sstable_reader.h"
 #include <iostream>
-#include <vector>
 #include <cassert>
-#include "slice.h"
-#include "wal_logger.h"
 
 int main() {
-    std::cout << "=== 开始测试 Slice 与 WalLogger 集成 ===" << std::endl;
+    std::string sst_filename = "test_data.sst";
 
-    // 1. 初始化 WAL 日志器
-    WalLogger logger("./test_wal.log");
-
-    // 2. 测试用例数据（包含正常字符串、空字符串、包含'\0'的二进制数据）
-    struct TestCase {
-        OperationType op;
-        std::string key;
-        std::string value;
-    };
-
-    std::vector<TestCase> test_cases = {
-        {OperationType::PUT, "normal_key", "normal_value"},
-        {OperationType::PUT, "empty_value_key", ""},      // 测试空 Value
-        {OperationType::PUT, "", "empty_key_value"},      // 测试空 Key
-        {OperationType::ERASE, "to_be_deleted", ""},      // 测试删除操作
-        {OperationType::PUT, "binary_key", std::string("val\0ue", 6)} // 测试包含 '\0' 的二进制数据
-    };
-
-    // 3. 使用 Slice 进行写入测试
-    std::cout << "[Test] 写入数据中..." << std::endl;
-    for (const auto& tc : test_cases) {
-        // 将 std::string 隐式转换为 Slice（零拷贝）
-        Slice key_slice(tc.key);
-        Slice val_slice(tc.value);
+    // 1. 生成 SSTable 文件 (128 字节一个 block，生成多块索引)
+    std::cout << "=== Phase 1: Building SSTable ===" << std::endl;
+    {
+        SSTableBuilder builder(sst_filename, 128);
         
-        bool success = logger.Append(tc.op, key_slice, val_slice);
-        assert(success && "写入 WAL 失败！");
-    }
-    std::cout << "[Test] 写入成功，共 " << test_cases.size() << " 条记录。" << std::endl;
-
-    // 4. 读取并验证恢复的数据
-    std::cout << "[Test] 开始恢复数据..." << std::endl;
-    auto records = logger.Recover();
-    
-    assert(records.size() == test_cases.size() && "恢复的记录数量不匹配！");
-
-    for (size_t i = 0; i < records.size(); ++i) {
-        const auto& rec = records[i];
-        const auto& expected = test_cases[i];
-        
-        // 验证操作类型
-        assert(rec.op == expected.op && "操作类型不匹配！");
-        // 验证 Key（将恢复出的 Slice 转回 string 进行比较）
-        assert(rec.key == expected.key && "Key 不匹配！");
-        // 验证 Value
-        assert(rec.value == expected.value && "Value 不匹配！");
-        
-        std::cout << "  -> 验证通过: Op=" << (int)rec.op 
-                  << ", Key=\"" << rec.key << "\"" 
-                  << ", Value=\"" << rec.value << "\"" << std::endl;
+        // 必须按字典序写入！
+        // 比如："key_00", "key_01", ... "key_99"
+        for (int i = 0; i < 100; ++i) {
+            char k_buf[16], v_buf[32];
+            snprintf(k_buf, sizeof(k_buf), "key_%02d", i);
+            snprintf(v_buf, sizeof(v_buf), "val_payload_%02d", i);
+            builder.Add(k_buf, v_buf);
+        }
+        builder.Finish();
     }
 
-    std::cout << "\n🎉 恭喜！所有 Slice 与 WalLogger 集成测试全部通过！" << std::endl;
+    // 2. 使用 SSTableReader 读取验证
+    std::cout << "\n=== Phase 2: Reading & Searching SSTable ===" << std::endl;
+    {
+        auto reader = SSTableReader::Open(sst_filename);
+        assert(reader != nullptr);
+
+        std::string val;
+
+        // 验证查存在的 Key
+        if (reader->Get("key_42", &val)) {
+            std::cout << "[Success] Found key_42 => " << val << std::endl;
+            assert(val == "val_payload_42");
+        } else {
+            std::cerr << "[Error] Key key_42 not found!" << std::endl;
+        }
+
+        if (reader->Get("key_00", &val)) {
+            std::cout << "[Success] Found key_00 => " << val << std::endl;
+            assert(val == "val_payload_00");
+        }
+
+        if (reader->Get("key_99", &val)) {
+            std::cout << "[Success] Found key_99 => " << val << std::endl;
+            assert(val == "val_payload_99");
+        }
+
+        // 验证查不存在的 Key
+        bool found_absent = reader->Get("key_100", &val);
+        std::cout << "[Check] Searching for non-existent key_100: " 
+                  << (found_absent ? "FOUND (Bug)" : "NOT FOUND (Correct!)") << std::endl;
+        assert(!found_absent);
+    }
+
+    std::cout << "\n🎉 SSTable 读写模块（阶段三二步）全面测试通过！" << std::endl;
     return 0;
 }
