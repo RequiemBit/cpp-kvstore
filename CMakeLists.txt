@@ -9,20 +9,25 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 4. 添加可执行文件目标
-# 注意：这里列出了所有参与编译的 .cpp 文件
 add_executable(kv_server
     src/main.cpp
     src/kv_engine.cpp
     src/wal_logger.cpp
     src/sstable_builder.cpp
     src/sstable_reader.cpp
-    # 如果未来有 slice.cpp 实现，请在这里添加 src/slice.cpp
-    # 目前 Slice 是纯头文件实现，不需要编译单元
+    
+    # 将测试实现文件加入主程序，因为它要被 main.cpp 调用
+    tests/test_runner.cpp 
 )
 
-# 5. 包含头文件目录
-# 这样在代码里就可以直接写 #include "slice.h" 或 #include "wal_logger.h"
-target_include_directories(kv_server PRIVATE include)
+# 5. 设置包含目录
+# 注意：这里需要同时包含 include (业务头文件) 和 tests (测试头文件)
+# 方法 A：显式添加 tests 目录
+target_include_directories(kv_server PRIVATE include tests)
+
+# 或者 方法 B（更通用）：添加项目根目录作为包含路径
+# target_include_directories(kv_server PRIVATE ${CMAKE_SOURCE_DIR})
+
 
 # 6. 针对 WSL/Linux 环境的编译优化与警告
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")

@@ -20,8 +20,9 @@ public:
     SSTableReader& operator=(const SSTableReader&) = delete;
 
     // 核心点查接口：在磁盘 SSTable 中精准检索 key
-    bool Get(const Slice& key, std::string* value);
-
+    // 增加获取 ValueType 的 Get 重载
+    bool Get(const Slice& key, std::string* value, ValueType* type);
+    bool Get(const Slice& key, std::string* value); // 兼容旧接口
 private:
     explicit SSTableReader(const std::string& filename);
 
@@ -30,7 +31,12 @@ private:
     // 2. 加载 Index Block 到内存
     bool LoadIndexBlock(const Footer& footer);
     // 3. 在特定 Data Block 内存缓存区内精确查找 KV
-    bool SearchInDataBlock(const std::string& block_data, const Slice& key, std::string* value);
+
+    // 修改后：增加 ValueType* type 参数（建议带上默认参数 nullptr）
+    bool SearchInDataBlock(const std::string& block_data, 
+                        const Slice& key, 
+                        std::string* value, 
+                        ValueType* type = nullptr);
 
     std::string filename_;
     std::ifstream file_;

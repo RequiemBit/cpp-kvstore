@@ -15,42 +15,53 @@ SSTableBuilder::~SSTableBuilder() {
     }
 }
 
-void SSTableBuilder::Add(const Slice& key, const Slice& value) {
+// 支持传入 ValueType 的重载/统一接口，默认为 kTypeValue
+void SSTableBuilder::Add(const Slice& key, const Slice& value, ValueType type) {
     if (finished_) return;
 
-    // 序列化一条 KV 记录格式: [key_len (4B)][val_len (4B)][key_bytes][val_bytes]
+    // 1. 序列化格式: [type (1B)][key_len (4B)][val_len (4B)][key_bytes][val_bytes]
+    uint8_t raw_type = static_cast<uint8_t>(type);
     uint32_t k_len = static_cast<uint32_t>(key.size());
-    uint32_t v_len = static_cast<uint32_t>(value.size());
+    uint32_t v_len = (type == ValueType::kTypeDeletion) ? 0 : static_cast<uint32_t>(value.size());
 
+    block_buffer_.append(reinterpret_cast<const char*>(&raw_type), sizeof(raw_type));
     block_buffer_.append(reinterpret_cast<const char*>(&k_len), sizeof(k_len));
     block_buffer_.append(reinterpret_cast<const char*>(&v_len), sizeof(v_len));
+    
     block_buffer_.append(key.data(), key.size());
-    block_buffer_.append(value.data(), value.size());
+    if (v_len > 0) {
+        block_buffer_.append(value.data(), v_len);
+    }
 
-    // 记录当前 Block 遇到的最新 (也是最大) 的 Key
+    // 2. 记录当前 Block 的最大 Key
     last_key_in_block_ = key.to_string();
 
-    // 如果当前 Block 缓冲区大小达到了预设的 block_size_（例如 4KB），切分并 Flush 磁盘
+    // 3. 缓冲区满了则刷盘
     if (block_buffer_.size() >= block_size_) {
         FlushBlock();
     }
 }
 
+// 兼容旧接口的 Add 重载
+void SSTableBuilder::Add(const Slice& key, const Slice& value) {
+    Add(key, value, ValueType::kTypeValue);
+}
+
 void SSTableBuilder::FlushBlock() {
     if (block_buffer_.empty()) return;
 
-    // 1. 记录此 Data Block 的索引信息
+    // 1. 记录 Index 索引数据
     IndexEntry entry;
     entry.max_key = last_key_in_block_;
     entry.offset = current_offset_;
     entry.size = block_buffer_.size();
     index_entries_.push_back(entry);
 
-    // 2. 将 Data Block 写入磁盘
+    // 2. 写入磁盘 Data Block
     file_.write(block_buffer_.data(), block_buffer_.size());
     current_offset_ += block_buffer_.size();
 
-    // 3. 重置缓冲区
+    // 3. 清空 Block 缓冲区
     block_buffer_.clear();
 }
 
@@ -76,7 +87,7 @@ bool SSTableBuilder::Finish() {
     file_.write(index_buffer.data(), index_buffer.size());
     current_offset_ += index_size;
 
-    // 3. 构建并写入固定 24 字节的 Footer
+    // 3. 构建并写入 Footer (固定 24 字节)
     Footer footer;
     footer.index_offset = index_offset;
     footer.index_size = index_size;

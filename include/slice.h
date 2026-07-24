@@ -4,8 +4,16 @@
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <cstdint>
 #include <string>
 #include <iostream>
+
+// ------------------- 新增：数据记录状态枚举 -------------------
+// 占用 1 字节：0 表示墓碑（已删除），1 表示正常 Value
+enum class ValueType : uint8_t {
+    kTypeDeletion = 0x0, // 墓碑标记
+    kTypeValue     = 0x1  // 正常写入的值
+};
 
 /**
  * @brief 工业级 Slice 类（参考 LevelDB 设计）

@@ -37,8 +37,9 @@ public:
     SSTableBuilder& operator=(const SSTableBuilder&) = delete;
 
     // 追加一个 KV 对 (注意：传入的 Key 必须严格递增/有序)
-    void Add(const Slice& key, const Slice& value);
-
+    // 增加带 ValueType 的重载/统一接口
+    void Add(const Slice& key, const Slice& value, ValueType type);
+    void Add(const Slice& key, const Slice& value); // 兼容旧接口
     // 完成 SSTable 的构建（刷入最后的 Data Block、写入 Index Block 和 Footer）
     bool Finish();
 
@@ -60,3 +61,6 @@ private:
 };
 
 #endif // SSTABLE_BUILDER_H
+
+
+// sstable_table 作用

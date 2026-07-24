@@ -1,4 +1,5 @@
 #include "wal_logger.h"
+#include <filesystem>
 #include <iostream>
 #include <unistd.h> // POSIX API: fsync
 
@@ -27,19 +28,32 @@ static uint32_t compute_crc32(const char* data, size_t length, uint32_t previous
 }
 // -------------------------
 
-WalLogger::WalLogger(const std::string& log_path) : path_(log_path) {
-    // 以二进制和追加模式打开文件
-    ofs_.open(path_, std::ios::binary | std::ios::app | std::ios::out);
-    if (!ofs_.is_open()) {
+WalLogger::WalLogger(const std::string& log_path) {
+    // 复用 Open() 函数，内部会自动设置 path_ 并打开文件
+    if (!Open(log_path)) {
         std::cerr << "[WAL Error] Failed to open log file: " << path_ << std::endl;
     }
 }
 
 WalLogger::~WalLogger() {
+    // 复用 Close() 函数，确保 flush 后安全关闭
+    Close();
+}
+
+bool WalLogger::Open(const std::string& log_path) {
+    Close(); // 若之前已打开文件，先安全关闭
+    path_ = log_path;
+    ofs_.open(path_, std::ios::out | std::ios::app | std::ios::binary);
+    return ofs_.is_open();
+}
+
+void WalLogger::Close() {
     if (ofs_.is_open()) {
+        ofs_.flush();
         ofs_.close();
     }
 }
+
 
 // 校验数据是否有效
 uint32_t WalLogger::CalculateChecksum(LogHeader header, const Slice& key, const Slice& value) {
@@ -77,14 +91,6 @@ bool WalLogger::Append(OperationType op, const Slice& key, const Slice& value) {
     return ofs_.good();
 }
 
-// 将数据存到磁盘，没调用过？
-void WalLogger::Sync() {
-    if (!ofs_.is_open()) return;
-    
-    // 强制把文件数据刷到物理磁盘上 (fsync 系统调用)
-    ofs_.flush();
-    // 可以在需要绝对安全时，通过底层系统调用或者平台 API 执行物理落盘
-}
 
 // 通过wallog恢复数据
 std::vector<ParsedLogRecord> WalLogger::Recover() {
@@ -127,4 +133,15 @@ std::vector<ParsedLogRecord> WalLogger::Recover() {
     ifs.close();
     std::cout << "[WAL Recovery] Successfully recovered " << records.size() << " records." << std::endl;
     return records;
+}
+
+void WalLogger::Sync() {
+    if (ofs_.is_open()) {
+        ofs_.flush();
+    }
+}
+
+bool WalLogger::RemoveWalFile(const std::string& log_path) {
+    std::error_code ec;
+    return std::filesystem::remove(log_path, ec);
 }

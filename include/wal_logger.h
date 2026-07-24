@@ -38,9 +38,18 @@ struct ParsedLogRecord {
 
 class WalLogger {
 public:
+    // 提供默认构造函数，方便在 KVEngine 中延迟初始化
+    WalLogger() = default;
+
     // 构造时候使用追加模式打开ofs
     explicit WalLogger(const std::string& log_path);
     ~WalLogger();
+
+    // 新增：动态打开/切换指定的 WAL 文件
+    bool Open(const std::string& log_path);
+
+    // 新增：安全关闭当前的 WAL 文件句柄
+    void Close();
 
     // 写入一条日志到磁盘（升级为 Slice 参数，支持零拷贝）
     bool Append(OperationType op, const Slice& key, const Slice& value = Slice());
@@ -50,6 +59,9 @@ public:
 
     // 真正物理落盘 (FSYNC)
     void Sync();
+
+    // 新增：静态辅助函数，用于 Flush 成功后从磁盘安全删除旧 WAL
+    static bool RemoveWalFile(const std::string& log_path);
 
 private:
     // 日志存放的路径

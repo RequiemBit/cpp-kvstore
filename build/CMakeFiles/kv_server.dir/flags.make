@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/requiem/kvstore/include
+CXX_INCLUDES = -I/home/requiem/kvstore/include -I/home/requiem/kvstore/tests
 
 CXX_FLAGS = -std=gnu++17 -Wall -Wextra -pedantic -O2
 

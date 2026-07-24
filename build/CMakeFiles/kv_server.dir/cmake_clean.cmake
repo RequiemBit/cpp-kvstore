@@ -9,6 +9,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/kv_server.dir/src/sstable_reader.cpp.o.d"
   "CMakeFiles/kv_server.dir/src/wal_logger.cpp.o"
   "CMakeFiles/kv_server.dir/src/wal_logger.cpp.o.d"
+  "CMakeFiles/kv_server.dir/tests/test_runner.cpp.o"
+  "CMakeFiles/kv_server.dir/tests/test_runner.cpp.o.d"
   "kv_server"
   "kv_server.pdb"
 )

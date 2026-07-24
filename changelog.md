@@ -71,3 +71,16 @@
 - **构建系统同步**：更新 CMakeLists.txt 配置，将新增的 `sstable_builder.cpp` 等核心模块无缝接入编译流水线，支持外部构建（Out-of-source build）。
 
 
+## [0.5.0] - 2026-07-23
+
+### Added (新增)
+- **核心引擎集成**：将 `SSTableBuilder` 与 `SSTableReader` 无缝集成至 `KVEngine`，打通了从内存到磁盘的完整读写链路。
+- **自动刷盘机制 (Auto-Flush)**：实现了 MemTable 容量监控，当内存节点数达到阈值时，自动触发后台刷盘，生成有序的 SSTable 文件。
+- **全量重启恢复 (Restart & Recovery)**：引擎启动时自动扫描并加载磁盘上已有的 SSTable 文件，结合 WAL 重放，实现完整的崩溃恢复闭环。
+- **手动强制刷盘接口**：新增 `force_flush()` 方法，支持在特定场景下手动触发内存数据落盘。
+- **全链路集成测试**：新增 Phase 3 集成测试用例，成功验证了跨内存与磁盘的混合查询、删除操作以及引擎重启后的数据一致性。
+
+### Changed (变更)
+- **架构里程碑**：项目正式完成 LSM-Tree 阶段三的核心目标，`KVEngine` 现已具备真正的磁盘持久化与海量数据支撑能力。
+- **查询路径升级**：`Get` 操作现已支持 `MemTable -> SSTable` 的多级查找逻辑，为后续的覆盖写（Overwrite）和 Compaction 打下基础。
+
