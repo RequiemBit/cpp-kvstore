@@ -180,11 +180,48 @@ void TestFullIntegration() {
     }
 }
 
+// Test 4
+void TestCompaction() {
+    std::cout << "\n>>> [Test Case 3] SSTable Compaction & Garbage Collection Test..." << std::endl;
+    const std::string test_dir = "./test_compaction_db";
+    CleanupTestDir(test_dir);
+
+    {
+        KVEngine engine(test_dir, 2); // 频繁触发 Flush
+
+        // 1. 写入 key1="v1", key2="v2" -> Flush 到 SSTable 1
+        engine.put("key_1", "val_v1");
+        engine.put("key_2", "val_v2"); 
+
+        // 2. 覆盖写 key1="v2", 删 key2 -> Flush 到 SSTable 2
+        engine.put("key_1", "val_v2_updated");
+        engine.erase("key_2");
+
+        // 3. 写入 key3="v3" -> Flush 到 SSTable 3
+        engine.put("key_3", "val_v3");
+        engine.put("key_4", "val_v4");
+
+        std::string val;
+        assert(engine.get("key_1", val) && val == "val_v2_updated");
+        assert(!engine.get("key_2", val)); // 被删除
+
+        // 4. 手动执行 Major Compaction
+        engine.Compact();
+
+        // 5. 校验 Compaction 后的数据正确性
+        assert(engine.get("key_1", val) && val == "val_v2_updated");
+        assert(!engine.get("key_2", val)); // 墓碑和旧数据均被抹除，依然返回 false
+        assert(engine.get("key_3", val) && val == "val_v3");
+
+        std::cout << "    [PASS] Compaction successfully pruned tombstones and overwritten values!" << std::endl;
+    }
+}
+
 void RunAllTests() {
     TestMemoryTombstone();
     TestSSTableDiskTombstone();
     TestFullIntegration();
-
+    TestCompaction();
     std::cout << "\n==========================================================" << std::endl;
     std::cout << " 🎉 All Modules & Disk Tombstone Tests PASSED!           " << std::endl;
     std::cout << "==========================================================" << std::endl;

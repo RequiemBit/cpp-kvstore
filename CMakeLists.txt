@@ -15,7 +15,7 @@ add_executable(kv_server
     src/wal_logger.cpp
     src/sstable_builder.cpp
     src/sstable_reader.cpp
-    
+    src/iterator.cpp
     # 将测试实现文件加入主程序，因为它要被 main.cpp 调用
     tests/test_runner.cpp 
 )

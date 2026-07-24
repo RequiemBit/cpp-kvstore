@@ -129,6 +129,30 @@ kv_server/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/build
 .PHONY : kv_server/fast
 
+src/iterator.o: src/iterator.cpp.o
+.PHONY : src/iterator.o
+
+# target to build an object file
+src/iterator.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/iterator.cpp.o
+.PHONY : src/iterator.cpp.o
+
+src/iterator.i: src/iterator.cpp.i
+.PHONY : src/iterator.i
+
+# target to preprocess a source file
+src/iterator.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/iterator.cpp.i
+.PHONY : src/iterator.cpp.i
+
+src/iterator.s: src/iterator.cpp.s
+.PHONY : src/iterator.s
+
+# target to generate assembly for a file
+src/iterator.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/iterator.cpp.s
+.PHONY : src/iterator.cpp.s
+
 src/kv_engine.o: src/kv_engine.cpp.o
 .PHONY : src/kv_engine.o
 
@@ -282,6 +306,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... kv_server"
+	@echo "... src/iterator.o"
+	@echo "... src/iterator.i"
+	@echo "... src/iterator.s"
 	@echo "... src/kv_engine.o"
 	@echo "... src/kv_engine.i"
 	@echo "... src/kv_engine.s"

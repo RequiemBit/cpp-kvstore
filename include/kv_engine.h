@@ -60,6 +60,8 @@ public:
     void force_flush();
     void debug_print() const;
 
+    // 多路归并合并磁盘sst文件
+    void Compact();
 private:
     void FlushMemTable();
     void LoadExistingSSTables();

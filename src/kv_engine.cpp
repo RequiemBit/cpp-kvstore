@@ -1,10 +1,12 @@
 #include "kv_engine.h"
+#include "iterator.h"
 
 #include <filesystem>
 #include <iostream>
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include "iterator.h"
 
 KVEngine::KVEngine(const std::string& db_path, size_t max_mem_nodes, int max_level)
     : skiplist_(max_level),
@@ -125,7 +127,6 @@ void KVEngine::debug_print() const {
     skiplist_.display();
 }
 
-// 刷盘，
 // 刷盘
 void KVEngine::FlushMemTable() {
     if (skiplist_.size() == 0) return;
@@ -213,6 +214,89 @@ void KVEngine::RecoverAllWals() {
     }
 }
 
+
+void KVEngine::Compact() {
+    namespace fs = std::filesystem; // 仅在 Compact() 函数内部生效，干净且隔离
+    std::lock_guard<std::mutex> lock(mtx_);
+
+    // 如果 SSTable 数量小于等于 1，无需压缩
+    if (sstables_.size() <= 1) {
+        return;
+    }
+
+    std::cout << "[Compaction] Starting Major Compaction for " << sstables_.size() << " SSTables..." << std::endl;
+
+    // 1. 构建所有 SSTable 的 Iterator 向量
+    // 注意：sstables_ 中 index 0 是最新生成的，序列号最大
+    std::vector<std::unique_ptr<Iterator>> iterators;
+    size_t total_ssts = sstables_.size();
+    for (size_t i = 0; i < total_ssts; ++i) {
+        // 给每一个 SSTable 赋予 sequence，索引 0 sequence 最大
+        size_t seq = total_ssts - i; 
+        // 修改点：传入 sstables_[i].get() 指针
+        iterators.push_back(std::make_unique<SSTableIterator>(sstables_[i].get(), seq));
+    }
+
+    // 2. 初始化多路归并迭代器
+    MergingIterator merge_iter(std::move(iterators));
+
+    // 3. 创建合并后的目标 SSTable
+    ++sst_counter_;
+    std::string compact_sst_path = GetSstPath(sst_counter_);
+    SSTableBuilder builder(compact_sst_path);
+
+    std::string last_key = "";
+    bool has_last_key = false;
+    size_t compacted_records = 0;
+    size_t dropped_records = 0;
+
+    // 4. 遍历归并数据流（去重 + 墓碑清理）
+    while (merge_iter.Valid()) {
+        auto entry = merge_iter.entry();
+
+        // 由于归并流按 Key 排序（同 Key 按 sequence 从大到小），
+        // 遇到同 Key 时，第一条必定是最新的 Version/墓碑！
+        if (has_last_key && entry.key == last_key) {
+            // 抛弃旧版本数据
+            dropped_records++;
+            merge_iter.Next();
+            continue;
+        }
+
+        last_key = entry.key;
+        has_last_key = true;
+
+        // 如果最新版本是墓碑，彻底清理（因为这是 Major Compaction 包含全量 SSTable）
+        if (entry.type == ValueType::kTypeDeletion) {
+            dropped_records++; // 墓碑本身及其旧版本均丢弃
+            merge_iter.Next();
+            continue;
+        }
+
+        // 有效最新数据落盘
+        builder.Add(Slice(entry.key), Slice(entry.value), entry.type);
+        compacted_records++;
+        merge_iter.Next();
+    }
+
+    builder.Finish();
+
+    // 5. 替换 SSTables 句柄与磁盘物理文件清理
+    std::vector<std::string> old_sst_paths;
+    // 假设全部旧 SSTable 均参与了 Compaction，我们可以通过遍历磁盘或者由 SSTableReader 记录路径清理
+    // 这里简单清理原参与归并的 SSTable 内存句柄
+    sstables_.clear();
+
+    // 打开压缩后生成的新 SSTable
+    auto reader = SSTableReader::Open(compact_sst_path);
+    if (reader) {
+        sstables_.push_back(std::move(reader));
+    }
+
+    std::cout << "[Compaction] Finished! Saved " << compacted_records 
+              << " active records, dropped " << dropped_records 
+              << " obsolete/tombstone records." << std::endl;
+}
 
 // 数据流向
 

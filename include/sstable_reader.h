@@ -23,6 +23,10 @@ public:
     // 增加获取 ValueType 的 Get 重载
     bool Get(const Slice& key, std::string* value, ValueType* type);
     bool Get(const Slice& key, std::string* value); // 兼容旧接口
+
+    // 新增：供 Iterator 遍历使用的接口
+    size_t GetBlockCount() const;
+    std::string ReadDataBlock(size_t index);
 private:
     explicit SSTableReader(const std::string& filename);
 

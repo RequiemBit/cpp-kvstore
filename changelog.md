@@ -84,3 +84,18 @@
 - **架构里程碑**：项目正式完成 LSM-Tree 阶段三的核心目标，`KVEngine` 现已具备真正的磁盘持久化与海量数据支撑能力。
 - **查询路径升级**：`Get` 操作现已支持 `MemTable -> SSTable` 的多级查找逻辑，为后续的覆盖写（Overwrite）和 Compaction 打下基础。
 
+
+## [0.6.0] - 2026-07-24
+
+### Added (新增)
+- **WAL 轮转与生命周期管理**：实现了 WAL 文件的自动轮转（Log Rotation）与 GC 清理机制。当 MemTable 触发 Flush 时自动冻结并生成新日志文件，并在 SSTable 成功落盘后安全清理旧 WAL，保障磁盘空间可控。
+- **崩溃恢复增强 (Crash Recovery)**：完善了重启恢复流程。引擎启动时自动识别最新 WAL 目录，解析未落盘的 WAL 二进制记录并重新 Replay 写入 MemTable，实现了完整的持久性（Durability）与崩溃无损恢复。
+- **墓碑机制与跨层级覆盖 (Tombstone & Overwrite)**：引入 `ValueType::kTypeDeletion` 标记，将删除操作改为追加写。在点查（Get）路径中实现跨层遮蔽逻辑，一旦在高层（较新的 SSTable）命中 Tombstone 即刻阻断读取，彻底解决数据一致性（Consistency）问题。
+- **多路归并迭代器体系 (MergingIterator)**：设计了统一的 Iterator 虚基类，并基于 `std::priority_queue`（小顶堆）实现了多路归并迭代器，支持将多个不同 SSTable 的 Iterator 进行归并，输出全局有序（Key 字典序升序、Sequence 降序）的数据流。
+- **Major Compaction 与物理垃圾回收 (GC)**：利用 MergingIterator 实现数据去重与老旧版本清理。在 Major Compaction 过程中过滤已删除的 Tombstone（当确认低层无更旧数据时），真正释放物理磁盘空间，并原子化替换旧 SSTable 文件。
+- **全链路集成测试套件**：新增包含 4 大核心 Case 的集成测试框架，全面覆盖内存/磁盘墓碑阻断与持久化、WAL 轮转与崩溃恢复、以及 SSTable 多路归并 Compaction 与磁盘 GC 回收等关键路径。
+
+### Changed (变更)
+- **SSTableIterator 性能重构**：将 SSTableIterator 内部持有的 `std::shared_ptr` 重构为用完即销毁的原始指针 `SSTableReader*`，实现了零拷贝与轻量化生命周期管理，大幅降低迭代开销。
+- **工程规范与代码重构**：将 `CleanupTestDir` 和 `GetFilesByExtension` 等内部辅助函数移入匿名命名空间（`namespace { ... }`），严格遵循内部链接性规范，隐藏实现细节并保持头文件整洁。
+- **架构里程碑**：项目正式完成 LSM-Tree 阶段四的核心目标，`KVEngine` 现已具备完整的 LSM-Tree 后台维护能力，支持海量数据的追加写删除、跨层级覆盖与物理空间回收。

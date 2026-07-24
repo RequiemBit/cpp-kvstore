@@ -12,6 +12,9 @@ void TestSSTableDiskTombstone();
 // 运行引擎完整集成测试与 WAL 轮转测试
 void TestFullIntegration();
 
+// 测试多路合并sst
+void TestCompaction();
+
 // 运行所有测试套件
 void RunAllTests();
 

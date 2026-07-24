@@ -156,3 +156,28 @@ bool SSTableReader::SearchInDataBlock(const std::string& block_data, const Slice
     }
     return false;
 }
+
+// 获取 Data Block 的总数量
+size_t SSTableReader::GetBlockCount() const {
+    return index_entries_.size();
+}
+
+// 读取指定索引的 Data Block 原始字节数据
+std::string SSTableReader::ReadDataBlock(size_t index) {
+    if (index >= index_entries_.size()) {
+        return "";
+    }
+
+    const auto& index_item = index_entries_[index];
+    std::string block_data(index_item.size, '\0');
+
+    // 注意：请确保你的 IndexEntry 结构体中成员变量名是 offset 和 size
+    file_.seekg(index_item.offset, std::ios::beg);
+    file_.read(&block_data[0], index_item.size);
+
+    if (!file_) {
+        return "";
+    }
+
+    return block_data;
+}

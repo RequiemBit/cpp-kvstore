@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/kv_server.dir/src/iterator.cpp.o"
+  "CMakeFiles/kv_server.dir/src/iterator.cpp.o.d"
   "CMakeFiles/kv_server.dir/src/kv_engine.cpp.o"
   "CMakeFiles/kv_server.dir/src/kv_engine.cpp.o.d"
   "CMakeFiles/kv_server.dir/src/main.cpp.o"
