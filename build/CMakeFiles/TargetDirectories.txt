@@ -1,3 +1,4 @@
 /home/requiem/kvstore/build/CMakeFiles/kv_server.dir
+/home/requiem/kvstore/build/CMakeFiles/kv_benchmark.dir
 /home/requiem/kvstore/build/CMakeFiles/edit_cache.dir
 /home/requiem/kvstore/build/CMakeFiles/rebuild_cache.dir

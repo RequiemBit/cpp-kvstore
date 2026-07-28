@@ -8,12 +8,13 @@
 #include <sstream>
 #include "iterator.h"
 
+// 构造engine的过程
 KVEngine::KVEngine(const std::string& db_path, size_t max_mem_nodes, int max_level)
     : skiplist_(max_level),
       db_path_(db_path),
       max_mem_nodes_(max_mem_nodes) {
     
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::shared_mutex> lock(rw_mutex_);
 
     // 1. 确保数据目录存在
     if (!std::filesystem::exists(db_path_)) {
@@ -30,11 +31,12 @@ KVEngine::KVEngine(const std::string& db_path, size_t max_mem_nodes, int max_lev
     current_wal_path_ = GetWalPath(sst_counter_ + 1);
     wal_.Open(current_wal_path_);
 
-    std::cout << "[KVEngine] Recovery complete. Engine ready." << std::endl;
+    // std::cout << "[KVEngine] Recovery complete. Engine ready." << std::endl;
 }
 
+// 析构时候调用wal的Close保证wal文件落盘
 KVEngine::~KVEngine() {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::shared_mutex> lock(rw_mutex_);
     wal_.Close();
 }
 
@@ -54,7 +56,7 @@ std::string KVEngine::GetSstPath(size_t seq_num) const {
 
 // 插入一条数据，先写日志，再写跳表，超过阈值触发刷盘
 void KVEngine::put(const std::string& key, const std::string& value) {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::shared_mutex> lock(rw_mutex_);
     
     // 1. 先落 WAL 日志
     wal_.Append(OperationType::PUT, key, value);
@@ -71,7 +73,7 @@ void KVEngine::put(const std::string& key, const std::string& value) {
 // 查数据，先从内存找，再从sst中找
 // 查数据，先从内存找，再从sst中找
 bool KVEngine::get(const std::string& key, std::string& value) const {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::shared_lock<std::shared_mutex> lock(rw_mutex_);
 
     // 1. 第一优先级：检索 MemTable (内存)
     TableValue mem_val;
@@ -101,9 +103,9 @@ bool KVEngine::get(const std::string& key, std::string& value) const {
     return false; // 内存和磁盘均未找到
 }
 
-// 添加了墓碑标记
+// 删除一个键值，实际上是特殊的put操作
 bool KVEngine::erase(const std::string& key) {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::shared_mutex> lock(rw_mutex_);
 
     // 1. 先写 WAL 记录删除操作
     wal_.Append(OperationType::ERASE, key, "");
@@ -117,24 +119,24 @@ bool KVEngine::erase(const std::string& key) {
 
 // 手动调用刷盘
 void KVEngine::force_flush() {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::shared_mutex> lock(rw_mutex_);
     FlushMemTable();
 }
 
 // 用于测试
 void KVEngine::debug_print() const {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::shared_mutex> lock(rw_mutex_);
     skiplist_.display();
 }
 
-// 刷盘
+// 刷盘，将内存的skiplist的所有键和值通过builder的add加入datablock中
 void KVEngine::FlushMemTable() {
     if (skiplist_.size() == 0) return;
 
     ++sst_counter_;
     std::string sst_path = GetSstPath(sst_counter_);
 
-    std::cout << "[KVEngine] MemTable limit reached. Flushing to " << sst_path << "..." << std::endl;
+    // std::cout << "[KVEngine] MemTable limit reached. Flushing to " << sst_path << "..." << std::endl;
 
     SSTableBuilder builder(sst_path);
     auto all_kv = skiplist_.dump_all(); 
@@ -158,10 +160,10 @@ void KVEngine::FlushMemTable() {
 
     WalLogger::RemoveWalFile(old_wal_path);
 
-    std::cout << "[KVEngine] Flush complete. SSTables active count: " << sstables_.size() << std::endl;
+    // std::cout << "[KVEngine] Flush complete. SSTables active count: " << sstables_.size() << std::endl;
 }
 
-// 加载现有的sst文件，只加载footer和index_block
+// 加载现有的sst文件，将reader对象指针加入sstables_内，每个reader维护了index_entries(index_block内的内容)
 void KVEngine::LoadExistingSSTables() {
     std::vector<std::string> sst_files;
     for (const auto& entry : std::filesystem::directory_iterator(db_path_)) {
@@ -214,17 +216,17 @@ void KVEngine::RecoverAllWals() {
     }
 }
 
-
+// 归并排序合并sst文件
 void KVEngine::Compact() {
     namespace fs = std::filesystem; // 仅在 Compact() 函数内部生效，干净且隔离
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::shared_mutex> lock(rw_mutex_);
 
     // 如果 SSTable 数量小于等于 1，无需压缩
     if (sstables_.size() <= 1) {
         return;
     }
 
-    std::cout << "[Compaction] Starting Major Compaction for " << sstables_.size() << " SSTables..." << std::endl;
+    // std::cout << "[Compaction] Starting Major Compaction for " << sstables_.size() << " SSTables..." << std::endl;
 
     // 1. 构建所有 SSTable 的 Iterator 向量
     // 注意：sstables_ 中 index 0 是最新生成的，序列号最大
@@ -293,53 +295,21 @@ void KVEngine::Compact() {
         sstables_.push_back(std::move(reader));
     }
 
-    std::cout << "[Compaction] Finished! Saved " << compacted_records 
-              << " active records, dropped " << dropped_records 
-              << " obsolete/tombstone records." << std::endl;
+    // std::cout << "[Compaction] Finished! Saved " << compacted_records 
+    //           << " active records, dropped " << dropped_records 
+    //           << " obsolete/tombstone records." << std::endl;
 }
 
-// 数据流向
+// 启动一个kvengine -> LoadExistingSSTables加载原有sst文件，RecoverAllWals日志恢复数据，open创建新wal文件
 
-// [用户代码]  engine.put("name", "requiem")
-//       │
-//       ▼
-// [KVEngine]  获取互斥锁 (std::lock_guard)
-//       │
-//       ├──▶ 1. 泛型翻译官：to_string_internal("name")
-//       │      将泛型 K/V 转换为 std::string ("name", "requiem")
-//       │
-//       ├──▶ 2. 零拷贝视图：std::string 隐式转换为 Slice
-//       │      仅仅提取了 data_ 指针和 size_ 长度，不发生内存拷贝
-//       │
-//       ├──▶ 3. 落盘 (WAL)：wal_.Append(PUT, key_slice, val_slice)
-//       │      将 Header + Key + Value 的二进制字节流追加写入磁盘
-//       │
-//       └──▶ 4. 更新内存：skiplist.put("name", "requiem")
-//              将原始泛型数据深拷贝并插入到 SkipList 的内存树中
-
-
-// [系统启动]  KVEngine 构造函数触发
-//       │
-//       ▼
-// [WAL 恢复]  wal_.Recover()
-//       │
-//       ├──▶ 1. 读取二进制流：ifs.read()
-//       │      从磁盘读出固定大小的 Header，得知 Key/Value 的长度
-//       │
-//       ├──▶ 2. 分配内存载体：std::string(len, '\0')
-//       │      在堆上开辟对应大小的“空房间”
-//       │
-//       ├──▶ 3. 填充房间：ifs.read(key.data(), len)
-//       │      将磁盘上的原始字节直接“砸”进 std::string 的内存中
-//       │
-//       └──▶ 4. 组装记录：返回 vector<ParsedLogRecord>
-//              里面装满了 std::string 类型的 Key 和 Value
-//       │
-//       ▼
-// [KVEngine]  遍历恢复出的记录
-//       │
-//       ├──▶ 5. 逆向翻译官：from_string_internal<K>(record.key)
-//       │      利用 std::istringstream，将 std::string 重新解析回泛型 K/V
-//       │
-//       └──▶ 6. 重建内存结构：skiplist.put(key, val)
-//              将恢复出的数据重新插入 SkipList，引擎恢复至崩溃前状态
+// 			   ->  put(K,V)存入一条数据 -> wal_.Append追加日志，日志直接进入磁盘
+// 					  				 -> skiplist_.put,数据存入内存
+// 					  				 -> if (skiplist_.size() >= max_mem_nodes_)超过设置阈值，触发刷盘
+// 					  				 -> FlushMemTable() -> 增加sst计数，遍历skiplist依次add，调用    																	builder.Finish()生成完整的一个sst
+// 					  				 				  -> 将新数据的index_block用reader加载到内存???
+// 					  				 				  -> 删除废弃的wal文件，清空skiplist缓存
+// 			   -> erase(K)删除一条数据  ->  先wal_.Append(OperationType::ERASE, key, "");记录操作
+// 			   						 -> skiplist_.put(key, TableValue{ValueType::kTypeDeletion, ""});
+// 			   						 -> 向skiplist中进行特殊put操作，值类型标记为墓碑值
+// 			   -> get(K,V)读取一条数据  -> 先从内存的skiplis找,命中墓碑就返回false，说明数据被删除了
+// 			   						->  从磁盘中找，通过维护的reader数组查询

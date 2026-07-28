@@ -8,33 +8,54 @@ project(KVStore LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 4. 添加可执行文件目标
-add_executable(kv_server
-    src/main.cpp
+# 4. 定义存储引擎核心源文件（不包含 main.cpp 和测试代码）
+set(ENGINE_SOURCES
     src/kv_engine.cpp
     src/wal_logger.cpp
     src/sstable_builder.cpp
     src/sstable_reader.cpp
     src/iterator.cpp
-    # 将测试实现文件加入主程序，因为它要被 main.cpp 调用
+)
+
+# 5. 构建主程序与单元测试目标: kv_server
+add_executable(kv_server
+    src/main.cpp
+    ${ENGINE_SOURCES}
     tests/test_runner.cpp 
 )
 
-# 5. 设置包含目录
-# 注意：这里需要同时包含 include (业务头文件) 和 tests (测试头文件)
-# 方法 A：显式添加 tests 目录
+# 设置包含目录 (业务头文件 + 测试头文件)
 target_include_directories(kv_server PRIVATE include tests)
 
-# 或者 方法 B（更通用）：添加项目根目录作为包含路径
-# target_include_directories(kv_server PRIVATE ${CMAKE_SOURCE_DIR})
-
-
-# 6. 针对 WSL/Linux 环境的编译优化与警告
+# 6. 设置编译选项（开启 -O2 性能优化及警告）
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(kv_server PRIVATE 
-        -Wall       # 开启常用警告
-        -Wextra     # 开启额外警告
-        -pedantic   # 严格遵循标准
-        -O2         # 【新增】开启 O2 优化，这对存储引擎性能至关重要
+        -Wall 
+        -Wextra 
+        -pedantic 
+        -O2
     )
+endif()
+
+# 7. 构建 Google Benchmark 压测目标: kv_benchmark
+# 检查系统是否安装了 Google Benchmark
+find_package(benchmark QUIET)
+
+if(benchmark_FOUND)
+    message(STATUS "Google Benchmark found. Building kv_benchmark target...")
+    
+    add_executable(kv_benchmark
+        tests/bench_kv.cpp
+        ${ENGINE_SOURCES}
+    )
+
+    target_include_directories(kv_benchmark PRIVATE include tests)
+    target_link_libraries(kv_benchmark PRIVATE benchmark::benchmark pthread)
+
+    if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(kv_benchmark PRIVATE -O2 -Wall -Wextra)
+    endif()
+else()
+    message(WARNING "Google Benchmark NOT found! 'kv_benchmark' target will be skipped.\n"
+                    "Please install it via: 'sudo apt-get install libbenchmark-dev'")
 endif()

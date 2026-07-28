@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <shared_mutex>
 
 // include/kv_engine.h
 
@@ -86,5 +87,8 @@ private:
     size_t max_mem_nodes_;     // 触发 Flush 的节点数量阈值
     size_t sst_counter_{0};    // SSTable 文件编号计数器
     
-    mutable std::mutex mtx_;   // 并发保护锁
+    // 做并发优化，区分读写锁
+    // mutable std::mutex mtx_;   // 并发保护锁
+    mutable std::shared_mutex rw_mutex_;
+
 };

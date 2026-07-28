@@ -99,3 +99,77 @@
 - **SSTableIterator 性能重构**：将 SSTableIterator 内部持有的 `std::shared_ptr` 重构为用完即销毁的原始指针 `SSTableReader*`，实现了零拷贝与轻量化生命周期管理，大幅降低迭代开销。
 - **工程规范与代码重构**：将 `CleanupTestDir` 和 `GetFilesByExtension` 等内部辅助函数移入匿名命名空间（`namespace { ... }`），严格遵循内部链接性规范，隐藏实现细节并保持头文件整洁。
 - **架构里程碑**：项目正式完成 LSM-Tree 阶段四的核心目标，`KVEngine` 现已具备完整的 LSM-Tree 后台维护能力，支持海量数据的追加写删除、跨层级覆盖与物理空间回收。
+
+
+
+
+
+
+
+# 测试数据
+
+
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# make && ./kv_benchmark 2>&1 | grep -v -E "\[KVEngine\]|\[SSTableBuilder\]|\[Compaction\]|\[WAL"
+[ 53%] Built target kv_server
+[100%] Built target kv_benchmark
+2026-07-27T16:24:10+08:00
+Running ./kv_benchmark
+Run on (20 X 2918.4 MHz CPU s)
+CPU Caches:
+  L1 Data 48 KiB (x10)
+  L1 Instruction 32 KiB (x10)
+  L2 Unified 1280 KiB (x10)
+  L3 Unified 24576 KiB (x1)
+Load Average: 0.36, 0.12, 0.04
+-------------------------------------------------------------------------------------------------------------------
+Benchmark                                                         Time             CPU   Iterations UserCounters...
+-------------------------------------------------------------------------------------------------------------------
+BM_SequentialWrite/128                                         1483 ns         1479 ns       470313 bytes_per_second=95.4381Mi/s items_per_second=676.176k/s
+BM_SequentialWrite/1024                                        4013 ns         4013 ns       177543 bytes_per_second=248.107Mi/s items_per_second=249.194k/s
+BM_RandomWrite/128                                             1724 ns         1728 ns       426073 bytes_per_second=81.6769Mi/s items_per_second=578.678k/s
+BM_RandomWrite/1024                                            4221 ns         4229 ns       166729 bytes_per_second=235.407Mi/s items_per_second=236.438k/s
+BM_RandomRead/128                                              1165 ns         1171 ns       615990 bytes_per_second=120.543Mi/s items_per_second=854.047k/s
+BM_RandomRead/1024                                             1511 ns         1517 ns       466414 bytes_per_second=656.495Mi/s items_per_second=659.372k/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:1        1573 ns         1582 ns       450783 bytes_per_second=632.838Mi/s items_per_second=635.612k/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:2        8400 ns         4742 ns        81342 bytes_per_second=237.05Mi/s items_per_second=238.089k/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:4       16232 ns         6898 ns        38412 bytes_per_second=245.352Mi/s items_per_second=246.427k/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:8       38162 ns        10489 ns        17600 bytes_per_second=208.719Mi/s items_per_second=209.634k/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:16      74110 ns        11051 ns         8784 bytes_per_second=214.954Mi/s items_per_second=215.896k/s
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# 
+
+
+
+
+加入读写锁之后
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# make
+[  6%] Building CXX object CMakeFiles/kv_server.dir/src/wal_logger.cpp.o
+[ 13%] Linking CXX executable kv_server
+[ 53%] Built target kv_server
+[ 60%] Building CXX object CMakeFiles/kv_benchmark.dir/src/wal_logger.cpp.o
+[ 66%] Linking CXX executable kv_benchmark
+[100%] Built target kv_benchmark
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# ./kv_benchmark 
+2026-07-28T21:57:20+08:00
+Running ./kv_benchmark
+Run on (20 X 2918.4 MHz CPU s)
+CPU Caches:
+  L1 Data 48 KiB (x10)
+  L1 Instruction 32 KiB (x10)
+  L2 Unified 1280 KiB (x10)
+  L3 Unified 24576 KiB (x1)
+Load Average: 0.14, 0.03, 0.01
+-------------------------------------------------------------------------------------------------------------------
+Benchmark                                                         Time             CPU   Iterations UserCounters...
+-------------------------------------------------------------------------------------------------------------------
+BM_SequentialWrite/128                                         1437 ns         1433 ns       508709 bytes_per_second=98.4893Mi/s items_per_second=697.794k/s
+BM_SequentialWrite/1024                                        3857 ns         3857 ns       185883 bytes_per_second=258.165Mi/s items_per_second=259.296k/s
+BM_RandomWrite/128                                             1628 ns         1634 ns       446131 bytes_per_second=86.3729Mi/s items_per_second=611.95k/s
+BM_RandomWrite/1024                                            4269 ns         4277 ns       171363 bytes_per_second=232.813Mi/s items_per_second=233.833k/s
+BM_RandomRead/128                                               884 ns          888 ns       800254 bytes_per_second=158.95Mi/s items_per_second=1.12615M/s
+BM_RandomRead/1024                                             1075 ns         1080 ns       631510 bytes_per_second=921.961Mi/s items_per_second=926.002k/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:1        1099 ns         1109 ns       679244 bytes_per_second=906.028Mi/s items_per_second=909.999k/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:2        1204 ns         1209 ns       586954 bytes_per_second=1.61531Gi/s items_per_second=1.66133M/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:4        1401 ns         1407 ns       559488 bytes_per_second=2.77693Gi/s items_per_second=2.85604M/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:8        1593 ns         1601 ns       439544 bytes_per_second=4.88285Gi/s items_per_second=5.02195M/s
+KVEngineMTFixture/RandomReadMT/1024/real_time/threads:16       2871 ns         2883 ns       260464 bytes_per_second=5.41855Gi/s items_per_second=5.57291M/s
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# 

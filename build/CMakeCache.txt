@@ -198,6 +198,9 @@ KVStore_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 KVStore_SOURCE_DIR:STATIC=/home/requiem/kvstore
 
+//The directory containing a CMake configuration file for benchmark.
+benchmark_DIR:PATH=/usr/local/lib/cmake/benchmark
+
 
 ########################
 # INTERNAL cache entries
@@ -265,6 +268,8 @@ CMAKE_GENERATOR_INSTANCE:INTERNAL=
 CMAKE_GENERATOR_PLATFORM:INTERNAL=
 //Name of generator toolset.
 CMAKE_GENERATOR_TOOLSET:INTERNAL=
+//Test CMAKE_HAVE_LIBC_PTHREAD
+CMAKE_HAVE_LIBC_PTHREAD:INTERNAL=1
 //Source directory with the top level CMakeLists.txt file for this
 // project
 CMAKE_HOME_DIRECTORY:INTERNAL=/home/requiem/kvstore

@@ -1,6 +1,14 @@
 #include "sstable_builder.h"
 #include <iostream>
 
+// 构建buidler，这个时候创建了空的sst文件
+// -> Add(K,V) 向缓冲区加入一条数据，这个时候数据在内存中
+// -> 缓冲区满了 -> FlushBlock() 
+//              -> 将一个真正的block写入磁盘(sst文件内)，清空缓冲区
+// -> Finish()  -> 将缓冲区剩余数据写入sst,构建index_block和Footer,写入sst
+// 这个时候，一个完整的sst文件就完成了
+
+// 构造函数，这个时候磁盘中就有sst文件了，只是没有数据
 SSTableBuilder::SSTableBuilder(const std::string& filename, size_t block_size)
     : filename_(filename), block_size_(block_size), current_offset_(0), finished_(false) {
     file_.open(filename_, std::ios::binary | std::ios::out | std::ios::trunc);
@@ -9,13 +17,14 @@ SSTableBuilder::SSTableBuilder(const std::string& filename, size_t block_size)
     }
 }
 
+// 析构
 SSTableBuilder::~SSTableBuilder() {
     if (!finished_ && file_.is_open()) {
         file_.close();
     }
 }
 
-// 支持传入 ValueType 的重载/统一接口，默认为 kTypeValue
+// 将一条数据添加进datablock，满了FlushBlock()构建完整的datablock
 void SSTableBuilder::Add(const Slice& key, const Slice& value, ValueType type) {
     if (finished_) return;
 
@@ -47,7 +56,9 @@ void SSTableBuilder::Add(const Slice& key, const Slice& value) {
     Add(key, value, ValueType::kTypeValue);
 }
 
+// 真正构建datablock，并且将datablock写入write磁盘
 void SSTableBuilder::FlushBlock() {
+    // 缓冲区为空，不需要写入datablock
     if (block_buffer_.empty()) return;
 
     // 1. 记录 Index 索引数据
@@ -65,6 +76,7 @@ void SSTableBuilder::FlushBlock() {
     block_buffer_.clear();
 }
 
+// 构建indexblock和footer，
 bool SSTableBuilder::Finish() {
     if (finished_) return false;
 
@@ -101,9 +113,9 @@ bool SSTableBuilder::Finish() {
     file_.close();
     finished_ = true;
 
-    std::cout << "[SSTableBuilder] Successfully built SSTable: " << filename_
-              << " (Size: " << current_offset_ << " bytes, Blocks: " 
-              << index_entries_.size() << ")" << std::endl;
+    // std::cout << "[SSTableBuilder] Successfully built SSTable: " << filename_
+    //           << " (Size: " << current_offset_ << " bytes, Blocks: " 
+    //           << index_entries_.size() << ")" << std::endl;
 
     return true;
 }

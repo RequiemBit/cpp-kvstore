@@ -23,6 +23,7 @@ SSTableIterator::SSTableIterator(SSTableReader* reader, size_t sequence)
     }
 }
 
+// 构造时调用，读取第一个块的第一条数据，while是防御性编程，防止block损坏了
 void SSTableIterator::ParseCurrentBlock() {
     valid_ = false;
     while (current_block_idx_ < reader_->GetBlockCount()) {
@@ -39,10 +40,12 @@ void SSTableIterator::ParseCurrentBlock() {
     }
 }
 
+// 是否还有数据读
 bool SSTableIterator::Valid() const {
     return valid_;
 }
 
+// 见检测当前block有没有数据读了，没有就推进到下一个block，没有block就valid_=false直接return，有数据读就加载到current_entry_
 void SSTableIterator::Next() {
     if (!reader_) {
         valid_ = false;
@@ -60,6 +63,7 @@ void SSTableIterator::Next() {
         current_offset_ = 0;
     }
 
+    // 还有数据，读取这条数据并且加载到current_entry_
     const char* p = current_block_data_.data() + current_offset_;
     const char* limit = current_block_data_.data() + current_block_data_.size();
 

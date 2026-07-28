@@ -3,10 +3,15 @@
 
 #include "slice.h"
 #include "sstable_builder.h" // 共享 Footer 和 IndexEntry 结构体
+#include <unistd.h>
+#include <fcntl.h>
 #include <string>
-#include <fstream>
 #include <vector>
 #include <memory>
+#include <iostream>
+#include <algorithm>
+#include <cstring>
+#include <sys/stat.h>
 
 class SSTableReader {
 public:
@@ -43,6 +48,7 @@ private:
                         ValueType* type = nullptr);
 
     std::string filename_;
+    int fd_{-1}; // 文件描述符
     std::ifstream file_;
     std::vector<IndexEntry> index_entries_; // 驻留内存的索引树/列表
 };

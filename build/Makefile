@@ -129,12 +129,26 @@ kv_server/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/build
 .PHONY : kv_server/fast
 
+#=============================================================================
+# Target rules for targets named kv_benchmark
+
+# Build rule for target.
+kv_benchmark: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 kv_benchmark
+.PHONY : kv_benchmark
+
+# fast build rule for target.
+kv_benchmark/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/build
+.PHONY : kv_benchmark/fast
+
 src/iterator.o: src/iterator.cpp.o
 .PHONY : src/iterator.o
 
 # target to build an object file
 src/iterator.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/iterator.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/iterator.cpp.o
 .PHONY : src/iterator.cpp.o
 
 src/iterator.i: src/iterator.cpp.i
@@ -143,6 +157,7 @@ src/iterator.i: src/iterator.cpp.i
 # target to preprocess a source file
 src/iterator.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/iterator.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/iterator.cpp.i
 .PHONY : src/iterator.cpp.i
 
 src/iterator.s: src/iterator.cpp.s
@@ -151,6 +166,7 @@ src/iterator.s: src/iterator.cpp.s
 # target to generate assembly for a file
 src/iterator.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/iterator.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/iterator.cpp.s
 .PHONY : src/iterator.cpp.s
 
 src/kv_engine.o: src/kv_engine.cpp.o
@@ -159,6 +175,7 @@ src/kv_engine.o: src/kv_engine.cpp.o
 # target to build an object file
 src/kv_engine.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/kv_engine.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/kv_engine.cpp.o
 .PHONY : src/kv_engine.cpp.o
 
 src/kv_engine.i: src/kv_engine.cpp.i
@@ -167,6 +184,7 @@ src/kv_engine.i: src/kv_engine.cpp.i
 # target to preprocess a source file
 src/kv_engine.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/kv_engine.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/kv_engine.cpp.i
 .PHONY : src/kv_engine.cpp.i
 
 src/kv_engine.s: src/kv_engine.cpp.s
@@ -175,6 +193,7 @@ src/kv_engine.s: src/kv_engine.cpp.s
 # target to generate assembly for a file
 src/kv_engine.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/kv_engine.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/kv_engine.cpp.s
 .PHONY : src/kv_engine.cpp.s
 
 src/main.o: src/main.cpp.o
@@ -207,6 +226,7 @@ src/sstable_builder.o: src/sstable_builder.cpp.o
 # target to build an object file
 src/sstable_builder.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_builder.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/sstable_builder.cpp.o
 .PHONY : src/sstable_builder.cpp.o
 
 src/sstable_builder.i: src/sstable_builder.cpp.i
@@ -215,6 +235,7 @@ src/sstable_builder.i: src/sstable_builder.cpp.i
 # target to preprocess a source file
 src/sstable_builder.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_builder.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/sstable_builder.cpp.i
 .PHONY : src/sstable_builder.cpp.i
 
 src/sstable_builder.s: src/sstable_builder.cpp.s
@@ -223,6 +244,7 @@ src/sstable_builder.s: src/sstable_builder.cpp.s
 # target to generate assembly for a file
 src/sstable_builder.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_builder.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/sstable_builder.cpp.s
 .PHONY : src/sstable_builder.cpp.s
 
 src/sstable_reader.o: src/sstable_reader.cpp.o
@@ -231,6 +253,7 @@ src/sstable_reader.o: src/sstable_reader.cpp.o
 # target to build an object file
 src/sstable_reader.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_reader.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/sstable_reader.cpp.o
 .PHONY : src/sstable_reader.cpp.o
 
 src/sstable_reader.i: src/sstable_reader.cpp.i
@@ -239,6 +262,7 @@ src/sstable_reader.i: src/sstable_reader.cpp.i
 # target to preprocess a source file
 src/sstable_reader.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_reader.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/sstable_reader.cpp.i
 .PHONY : src/sstable_reader.cpp.i
 
 src/sstable_reader.s: src/sstable_reader.cpp.s
@@ -247,6 +271,7 @@ src/sstable_reader.s: src/sstable_reader.cpp.s
 # target to generate assembly for a file
 src/sstable_reader.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/sstable_reader.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/sstable_reader.cpp.s
 .PHONY : src/sstable_reader.cpp.s
 
 src/wal_logger.o: src/wal_logger.cpp.o
@@ -255,6 +280,7 @@ src/wal_logger.o: src/wal_logger.cpp.o
 # target to build an object file
 src/wal_logger.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/wal_logger.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/wal_logger.cpp.o
 .PHONY : src/wal_logger.cpp.o
 
 src/wal_logger.i: src/wal_logger.cpp.i
@@ -263,6 +289,7 @@ src/wal_logger.i: src/wal_logger.cpp.i
 # target to preprocess a source file
 src/wal_logger.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/wal_logger.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/wal_logger.cpp.i
 .PHONY : src/wal_logger.cpp.i
 
 src/wal_logger.s: src/wal_logger.cpp.s
@@ -271,7 +298,32 @@ src/wal_logger.s: src/wal_logger.cpp.s
 # target to generate assembly for a file
 src/wal_logger.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_server.dir/build.make CMakeFiles/kv_server.dir/src/wal_logger.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/src/wal_logger.cpp.s
 .PHONY : src/wal_logger.cpp.s
+
+tests/bench_kv.o: tests/bench_kv.cpp.o
+.PHONY : tests/bench_kv.o
+
+# target to build an object file
+tests/bench_kv.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/tests/bench_kv.cpp.o
+.PHONY : tests/bench_kv.cpp.o
+
+tests/bench_kv.i: tests/bench_kv.cpp.i
+.PHONY : tests/bench_kv.i
+
+# target to preprocess a source file
+tests/bench_kv.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/tests/bench_kv.cpp.i
+.PHONY : tests/bench_kv.cpp.i
+
+tests/bench_kv.s: tests/bench_kv.cpp.s
+.PHONY : tests/bench_kv.s
+
+# target to generate assembly for a file
+tests/bench_kv.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_benchmark.dir/build.make CMakeFiles/kv_benchmark.dir/tests/bench_kv.cpp.s
+.PHONY : tests/bench_kv.cpp.s
 
 tests/test_runner.o: tests/test_runner.cpp.o
 .PHONY : tests/test_runner.o
@@ -305,6 +357,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... kv_benchmark"
 	@echo "... kv_server"
 	@echo "... src/iterator.o"
 	@echo "... src/iterator.i"
@@ -324,6 +377,9 @@ help:
 	@echo "... src/wal_logger.o"
 	@echo "... src/wal_logger.i"
 	@echo "... src/wal_logger.s"
+	@echo "... tests/bench_kv.o"
+	@echo "... tests/bench_kv.i"
+	@echo "... tests/bench_kv.s"
 	@echo "... tests/test_runner.o"
 	@echo "... tests/test_runner.i"
 	@echo "... tests/test_runner.s"

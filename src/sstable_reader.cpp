@@ -1,32 +1,33 @@
 #include "sstable_reader.h"
-#include <iostream>
-#include <algorithm>
-#include <cstring>
 
 SSTableReader::SSTableReader(const std::string& filename) : filename_(filename) {}
 
 SSTableReader::~SSTableReader() {
-    if (file_.is_open()) {
-        file_.close();
+    if (fd_ != -1) {
+        close(fd_);
+        fd_ = -1;
     }
 }
 
+// 打开一个 sst 文件的流程：先打开 fd，再读 footer，最后读 index_block
 std::unique_ptr<SSTableReader> SSTableReader::Open(const std::string& filename) {
     auto reader = std::unique_ptr<SSTableReader>(new SSTableReader(filename));
-    reader->file_.open(filename, std::ios::binary | std::ios::in);
-    if (!reader->file_.is_open()) {
+    
+    // 1. 使用 POSIX open 获取文件描述符
+    reader->fd_ = open(filename.c_str(), O_RDONLY);
+    if (reader->fd_ == -1) {
         std::cerr << "[SSTableReader Error] Cannot open file: " << filename << std::endl;
         return nullptr;
     }
 
-    // 1. 解析 Footer
+    // 2. 解析 Footer
     Footer footer;
     if (!reader->ReadFooter(&footer)) {
         std::cerr << "[SSTableReader Error] Invalid footer or magic number mismatch!" << std::endl;
         return nullptr;
     }
 
-    // 2. 加载 Index Block
+    // 3. 加载 Index Block
     if (!reader->LoadIndexBlock(footer)) {
         std::cerr << "[SSTableReader Error] Failed to load index block!" << std::endl;
         return nullptr;
@@ -35,23 +36,33 @@ std::unique_ptr<SSTableReader> SSTableReader::Open(const std::string& filename) 
     return reader;
 }
 
+// 读取 footer 的信息，使用 pread 替代 seekg + read
 bool SSTableReader::ReadFooter(Footer* footer) {
-    file_.seekg(0, std::ios::end);
-    uint64_t file_size = file_.tellg();
-    if (file_size < sizeof(Footer)) return false;
+    struct stat st;
+    if (fstat(fd_, &st) != 0) {
+        return false;
+    }
+    
+    uint64_t file_size = st.st_size;
+    if (file_size < sizeof(Footer)) {
+        return false;
+    }
 
-    file_.seekg(file_size - sizeof(Footer), std::ios::beg);
-    file_.read(reinterpret_cast<char*>(footer), sizeof(Footer));
+    uint64_t footer_offset = file_size - sizeof(Footer);
+    ssize_t bytes_read = pread(fd_, reinterpret_cast<char*>(footer), sizeof(Footer), footer_offset);
+    if (bytes_read != static_cast<ssize_t>(sizeof(Footer))) {
+        return false;
+    }
 
     return footer->magic_number == kSSTableMagicNumber;
 }
 
+// 根据 footer 加载 index_block 到内存 (index_entries_) 中
 bool SSTableReader::LoadIndexBlock(const Footer& footer) {
-    file_.seekg(footer.index_offset, std::ios::beg);
     std::string index_buffer(footer.index_size, '\0');
-    file_.read(&index_buffer[0], footer.index_size);
+    ssize_t bytes_read = pread(fd_, &index_buffer[0], footer.index_size, footer.index_offset);
 
-    if (file_.gcount() < static_cast<std::streamsize>(footer.index_size)) {
+    if (bytes_read != static_cast<ssize_t>(footer.index_size)) {
         return false;
     }
 
@@ -78,7 +89,7 @@ bool SSTableReader::LoadIndexBlock(const Footer& footer) {
     return true;
 }
 
-// 核心查询函数：能识别 Tombstone 并返回类型
+// 能识别 Tombstone 并返回类型，这里是确定数据在哪个 datablock，再调用 SearchInDataBlock 去查
 bool SSTableReader::Get(const Slice& key, std::string* value, ValueType* type) {
     if (index_entries_.empty()) return false;
 
@@ -96,10 +107,12 @@ bool SSTableReader::Get(const Slice& key, std::string* value, ValueType* type) {
         return false;
     }
 
-    // 2. IO 读取 Data Block
-    file_.seekg(it->offset, std::ios::beg);
+    // 2. 使用 POSIX pread 进行无状态并发读取
     std::string block_data(it->size, '\0');
-    file_.read(&block_data[0], it->size);
+    ssize_t bytes_read = pread(fd_, &block_data[0], it->size, it->offset);
+    if (bytes_read != static_cast<ssize_t>(it->size)) {
+        return false; // 读取失败防御
+    }
 
     // 3. 在 Data Block 内检索并获取 Value 和 ValueType
     return SearchInDataBlock(block_data, key, value, type);
@@ -115,6 +128,7 @@ bool SSTableReader::Get(const Slice& key, std::string* value) {
     return false;
 }
 
+// 在 DataBlock 内部检索 Key
 bool SSTableReader::SearchInDataBlock(const std::string& block_data, const Slice& key, std::string* value, ValueType* type) {
     size_t cursor = 0;
     while (cursor < block_data.size()) {
@@ -162,7 +176,7 @@ size_t SSTableReader::GetBlockCount() const {
     return index_entries_.size();
 }
 
-// 读取指定索引的 Data Block 原始字节数据
+// 读取指定索引的 Data Block 原始字节数据 (供 Iterator/Compaction 使用)
 std::string SSTableReader::ReadDataBlock(size_t index) {
     if (index >= index_entries_.size()) {
         return "";
@@ -171,11 +185,8 @@ std::string SSTableReader::ReadDataBlock(size_t index) {
     const auto& index_item = index_entries_[index];
     std::string block_data(index_item.size, '\0');
 
-    // 注意：请确保你的 IndexEntry 结构体中成员变量名是 offset 和 size
-    file_.seekg(index_item.offset, std::ios::beg);
-    file_.read(&block_data[0], index_item.size);
-
-    if (!file_) {
+    ssize_t bytes_read = pread(fd_, &block_data[0], index_item.size, index_item.offset);
+    if (bytes_read != static_cast<ssize_t>(index_item.size)) {
         return "";
     }
 

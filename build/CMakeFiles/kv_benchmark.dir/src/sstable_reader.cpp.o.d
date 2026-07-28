@@ -1,4 +1,4 @@
-CMakeFiles/kv_server.dir/src/sstable_reader.cpp.o: \
+CMakeFiles/kv_benchmark.dir/src/sstable_reader.cpp.o: \
  /home/requiem/kvstore/src/sstable_reader.cpp /usr/include/stdc-predef.h \
  /home/requiem/kvstore/include/sstable_reader.h \
  /home/requiem/kvstore/include/slice.h /usr/include/c++/13/cassert \

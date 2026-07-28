@@ -40,13 +40,16 @@ WalLogger::~WalLogger() {
     Close();
 }
 
+// 通过路径+文件名打开一个wal文件，没有会新建文件
 bool WalLogger::Open(const std::string& log_path) {
     Close(); // 若之前已打开文件，先安全关闭
     path_ = log_path;
+    // std::ios::out模式没有就会新建
     ofs_.open(path_, std::ios::out | std::ios::app | std::ios::binary);
     return ofs_.is_open();
 }
 
+// engine析构时调用，必须线flush再close，保证wal存在磁盘中
 void WalLogger::Close() {
     if (ofs_.is_open()) {
         ofs_.flush();
@@ -91,8 +94,7 @@ bool WalLogger::Append(OperationType op, const Slice& key, const Slice& value) {
     return ofs_.good();
 }
 
-
-// 通过wallog恢复数据
+// 读取一个wallog文件，按照设定的格式解析
 std::vector<ParsedLogRecord> WalLogger::Recover() {
     std::vector<ParsedLogRecord> records;
 
@@ -131,7 +133,7 @@ std::vector<ParsedLogRecord> WalLogger::Recover() {
     }
 
     ifs.close();
-    std::cout << "[WAL Recovery] Successfully recovered " << records.size() << " records." << std::endl;
+    // std::cout << "[WAL Recovery] Successfully recovered " << records.size() << " records." << std::endl;
     return records;
 }
 
@@ -145,3 +147,5 @@ bool WalLogger::RemoveWalFile(const std::string& log_path) {
     std::error_code ec;
     return std::filesystem::remove(log_path, ec);
 }
+
+// 

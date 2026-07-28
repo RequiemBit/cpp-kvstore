@@ -1,4 +1,4 @@
-CMakeFiles/kv_server.dir/src/kv_engine.cpp.o: \
+CMakeFiles/kv_benchmark.dir/src/kv_engine.cpp.o: \
  /home/requiem/kvstore/src/kv_engine.cpp /usr/include/stdc-predef.h \
  /home/requiem/kvstore/include/kv_engine.h \
  /home/requiem/kvstore/include/skip_list.h /usr/include/c++/13/iostream \
