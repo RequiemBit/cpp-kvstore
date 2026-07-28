@@ -1406,6 +1406,7 @@ CMakeFiles/kv_benchmark.dir/src/wal_logger.cpp.o
 CMakeFiles/kv_benchmark.dir/tests/bench_kv.cpp.o
  /home/requiem/kvstore/tests/bench_kv.cpp
  /home/requiem/kvstore/include/kv_engine.h
+ /home/requiem/kvstore/include/sharded_kv_engine.h
  /home/requiem/kvstore/include/skip_list.h
  /home/requiem/kvstore/include/slice.h
  /home/requiem/kvstore/include/sstable_builder.h

@@ -1400,6 +1400,7 @@ CMakeFiles/kv_benchmark.dir/src/wal_logger.cpp.o: /home/requiem/kvstore/src/wal_
 
 CMakeFiles/kv_benchmark.dir/tests/bench_kv.cpp.o: /home/requiem/kvstore/tests/bench_kv.cpp \
   /home/requiem/kvstore/include/kv_engine.h \
+  /home/requiem/kvstore/include/sharded_kv_engine.h \
   /home/requiem/kvstore/include/skip_list.h \
   /home/requiem/kvstore/include/slice.h \
   /home/requiem/kvstore/include/sstable_builder.h \
@@ -2296,6 +2297,8 @@ CMakeFiles/kv_benchmark.dir/tests/bench_kv.cpp.o: /home/requiem/kvstore/tests/be
 /usr/include/c++/13/bits/locale_classes.tcc:
 
 /usr/include/c++/13/bits/invoke.h:
+
+/home/requiem/kvstore/include/sharded_kv_engine.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h:
 
