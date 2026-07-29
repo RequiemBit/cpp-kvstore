@@ -29,6 +29,8 @@ public:
     bool Get(const Slice& key, std::string* value, ValueType* type);
     bool Get(const Slice& key, std::string* value); // 兼容旧接口
 
+    const std::string& GetFilePath() const { return filename_; }
+    
     // 新增：供 Iterator 遍历使用的接口
     size_t GetBlockCount() const;
     std::string ReadDataBlock(size_t index);

@@ -107,8 +107,46 @@
 
 
 # 测试数据
+## 此处是在本地跑的数据
+
+本地wsl连接的linux配置如下
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore# nproc
+# 或者查看详细架构信息
+lscpu | grep "CPU(s)"
+20
+CPU(s):                               20
+On-line CPU(s) list:                  0-19
+NUMA node0 CPU(s):                    0-19
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore# free -h
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       892Mi       6.5Gi       3.0Mi       389Mi       6.7Gi
+Swap:          2.0Gi          0B       2.0Gi
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+none            3.8G     0  3.8G   0% /usr/lib/modules/6.6.87.2-microsoft-standard-WSL2
+none            3.8G  4.0K  3.8G   1% /mnt/wsl
+drivers         201G  184G   17G  92% /usr/lib/wsl/drivers
+/dev/sdd       1007G  5.8G  950G   1% /
+none            3.8G   72K  3.8G   1% /mnt/wslg
+none            3.8G     0  3.8G   0% /usr/lib/wsl/lib
+rootfs          3.8G  2.7M  3.8G   1% /init
+none            3.8G     0  3.8G   0% /run
+none            3.8G     0  3.8G   0% /run/lock
+none            3.8G     0  3.8G   0% /run/shm
+none            3.8G     0  3.8G   0% /run/user
+none            3.8G   76K  3.8G   1% /mnt/wslg/versions.txt
+none            3.8G   76K  3.8G   1% /mnt/wslg/doc
+C:\             201G  184G   17G  92% /mnt/c
+D:\             250G   94G  156G  38% /mnt/d
+E:\             954G  565G  390G  60% /mnt/e
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore# ls /dev/dxg
+# 如果能看到设备文件，说明 GPU 直通已就绪
+/dev/dxg
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore# 
 
 
+
+全局锁的数据
 root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# make && ./kv_benchmark 2>&1 | grep -v -E "\[KVEngine\]|\[SSTableBuilder\]|\[Compaction\]|\[WAL"
 [ 53%] Built target kv_server
 [100%] Built target kv_benchmark
@@ -201,3 +239,251 @@ ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:4        1084 ns   
 ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:8        1223 ns         1231 ns       589904 bytes_per_second=6.35888Gi/s items_per_second=6.54004M/s
 ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:16       1562 ns         1573 ns       452880 bytes_per_second=9.9567Gi/s items_per_second=10.2403M/s
 root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# 
+
+
+# 测试数据
+## 下面是华为云跑出来的数据
+### 华为云的配置，4核心8线程
+root@ecs-ec4a:~/cpp-kvstore/build# lscpu
+Architecture:                x86_64
+  CPU op-mode(s):            32-bit, 64-bit
+  Address sizes:             42 bits physical, 48 bits virtual
+  Byte Order:                Little Endian
+CPU(s):                      8
+  On-line CPU(s) list:       0-7
+Vendor ID:                   AuthenticAMD
+  Model name:                General Purpose Processor
+    CPU family:              25
+    Model:                   1
+    Thread(s) per core:      2
+    Core(s) per socket:      4
+    Socket(s):               1
+    Stepping:                1
+    BogoMIPS:                4899.38
+    Flags:                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm const
+                             ant_tsc rep_good nopl nonstop_tsc cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_tim
+                             er aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext perfctr_core invpcid_single ssbd
+                              ibrs ibpb stibp vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves clz
+                             ero xsaveerptr wbnoinvd arat umip vaes vpclmulqdq fsrm arch_capabilities
+Virtualization features:     
+  Hypervisor vendor:         KVM
+  Virtualization type:       full
+Caches (sum of all):         
+  L1d:                       128 KiB (4 instances)
+  L1i:                       128 KiB (4 instances)
+  L2:                        2 MiB (4 instances)
+  L3:                        32 MiB (1 instance)
+NUMA:                        
+  NUMA node(s):              1
+  NUMA node0 CPU(s):         0-7
+Vulnerabilities:             
+  Gather data sampling:      Not affected
+  Indirect target selection: Not affected
+  Itlb multihit:             Not affected
+  L1tf:                      Not affected
+  Mds:                       Not affected
+  Meltdown:                  Not affected
+  Mmio stale data:           Not affected
+  Reg file data sampling:    Not affected
+  Retbleed:                  Not affected
+  Spec rstack overflow:      Mitigation; safe RET, no microcode
+  Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl and seccomp
+  Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+  Spectre v2:                Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP conditional; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+  Srbds:                     Not affected
+  Tsa:                       Vulnerable: Clear CPU buffers attempted, no microcode
+  Tsx async abort:           Not affected
+  Vmscape:                   Not affected
+root@ecs-ec4a:~/cpp-kvstore/build# cat /proc/meminfo
+MemTotal:       15978452 kB
+MemFree:         2113604 kB
+MemAvailable:   14970744 kB
+Buffers:           46292 kB
+Cached:         12710712 kB
+SwapCached:            0 kB
+Active:          2032676 kB
+Inactive:       11064268 kB
+Active(anon):       1184 kB
+Inactive(anon):   350460 kB
+Active(file):    2031492 kB
+Inactive(file): 10713808 kB
+Unevictable:       29156 kB
+Mlocked:           27620 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:               164 kB
+Writeback:             0 kB
+AnonPages:        368896 kB
+Mapped:           226964 kB
+Shmem:              2672 kB
+KReclaimable:     449528 kB
+Slab:             555992 kB
+SReclaimable:     449528 kB
+SUnreclaim:       106464 kB
+KernelStack:        5408 kB
+PageTables:         9332 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     7989224 kB
+Committed_AS:    1707232 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       37296 kB
+VmallocChunk:          0 kB
+Percpu:             7872 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+DirectMap4k:      253440 kB
+DirectMap2M:     3940352 kB
+DirectMap1G:    14680064 kB
+root@ecs-ec4a:~/cpp-kvstore/build# 
+
+### 锁分片后的测试
+root@ecs-ec4a:~/cpp-kvstore/build# ./kv_benchmark 
+2026-07-29T17:11:18+08:00
+Running ./kv_benchmark
+Run on (8 X 2449.69 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x4)
+  L1 Instruction 32 KiB (x4)
+  L2 Unified 512 KiB (x4)
+  L3 Unified 32768 KiB (x1)
+Load Average: 0.00, 0.34, 0.39
+--------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                Time             CPU   Iterations UserCounters...
+--------------------------------------------------------------------------------------------------------------------------
+BM_SequentialWrite/128                                                4253 ns         4252 ns       147967 bytes_per_second=33.1914M/s items_per_second=235.16k/s
+BM_SequentialWrite/1024                                               9475 ns         9472 ns        75524 bytes_per_second=105.11M/s items_per_second=105.571k/s
+BM_RandomWrite/128                                                    4919 ns         4959 ns       120798 bytes_per_second=28.4619M/s items_per_second=201.652k/s
+BM_RandomWrite/1024                                                  11350 ns        11404 ns        78628 bytes_per_second=87.3065M/s items_per_second=87.6892k/s
+BM_RandomRead/128                                                     1764 ns         1774 ns       426258 bytes_per_second=79.5689M/s items_per_second=563.743k/s
+BM_RandomRead/1024                                                    2097 ns         2108 ns       330814 bytes_per_second=472.32M/s items_per_second=474.39k/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:1        2065 ns         2079 ns       333547 bytes_per_second=482.06M/s items_per_second=484.173k/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:2        1032 ns         2078 ns       669398 bytes_per_second=964.986M/s items_per_second=969.216k/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:4         520 ns         2092 ns      1339108 bytes_per_second=1.87103G/s items_per_second=1.92433M/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:8         334 ns         2680 ns      2086896 bytes_per_second=2.91408G/s items_per_second=2.9971M/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:16        307 ns         2643 ns      2310032 bytes_per_second=3.17002G/s items_per_second=3.26033M/s
+root@ecs-ec4a:~/cpp-kvstore/build# 
+
+
+### 大数据量的测试
+
+root@ecs-ec4a:~/cpp-kvstore/build#
+
+2. 进入 build 目录编译并运行
+
+cd /root/cpp-kvstore/build
+
+make kv_large_scale -j8
+
+./kv_large_scale
+
+Consolidate compiler generated dependencies of target kv_large_scale
+
+[ 14%] Building CXX object CMakeFiles/kv_large_scale.dir/tests/test_large_scale.cpp.o
+
+[ 28%] Linking CXX executable kv_large_scale
+
+[100%] Built target kv_large_scale
+
+
+
+==================================================
+
+  ShardedKVEngine 500万级【多线程并发】大数据压测
+
+==================================================
+
+[配置] 并发线程数: 8 | 每线程写入: 625000 条 | 总数据量: 5000000 条 (5GB)
+
+
+
+==================================================
+
+  阶段一：8 线程并发追加写入 500 万条数据
+
+==================================================
+
+[多线程写入完成] 总耗时: 29.0152 秒
+
+多线程并发写入吞吐: 172323 QPS
+
+相当于磁盘写入带宽: 168.28 MB/s
+
+
+
+==================================================
+
+  阶段二：8 线程并发随机点查 (Random Read MT)
+
+==================================================
+
+[多线程读取完成] 校验通过率: 400000 / 400000 (100.00%)
+
+多线程并发点查吞吐: 20119 QPS
+
+
+
+==================================================
+
+  多线程高压测试顺利通过！
+
+==================================================
+
+root@ecs-ec4a:~/cpp-kvstore/build#  
+
+
+### 长时间运行的测试（没有compact）
+[100%] Built target kv_soak
+[2026-07-29 17:24:41] 开始 ShardedKVEngine 长时间稳定性压测 (Soak Test)...
+[2026-07-29 17:24:41] 计划运行时长: 10 分钟
+[2026-07-29 17:25:41] 运行时间: 1/10 分钟 | 近1分钟写 QPS: 32970 | 近1分钟读 QPS: 32966 | 累计写入: 1978211 | 累计读取: 1978014
+[2026-07-29 17:26:41] 运行时间: 2/10 分钟 | 近1分钟写 QPS: 14936 | 近1分钟读 QPS: 14945 | 累计写入: 2874389 | 累计读取: 2874719
+[2026-07-29 17:27:41] 运行时间: 3/10 分钟 | 近1分钟写 QPS: 11389 | 近1分钟读 QPS: 11423 | 累计写入: 3557733 | 累计读取: 3560158
+[2026-07-29 17:28:41] 运行时间: 4/10 分钟 | 近1分钟写 QPS: 9595 | 近1分钟读 QPS: 9577 | 累计写入: 4133486 | 累计读取: 4134810
+[2026-07-29 17:29:41] 运行时间: 5/10 分钟 | 近1分钟写 QPS: 8420 | 近1分钟读 QPS: 8419 | 累计写入: 4638733 | 累计读取: 4639979
+[2026-07-29 17:30:41] 运行时间: 6/10 分钟 | 近1分钟写 QPS: 7566 | 近1分钟读 QPS: 7541 | 累计写入: 5092708 | 累计读取: 5092466
+[2026-07-29 17:31:41] 运行时间: 7/10 分钟 | 近1分钟写 QPS: 6909 | 近1分钟读 QPS: 6919 | 累计写入: 5507285 | 累计读取: 5507647
+[2026-07-29 17:32:41] 运行时间: 8/10 分钟 | 近1分钟写 QPS: 6437 | 近1分钟读 QPS: 6423 | 累计写入: 5893519 | 累计读取: 5893045
+[2026-07-29 17:33:41] 运行时间: 9/10 分钟 | 近1分钟写 QPS: 6042 | 近1分钟读 QPS: 6024 | 累计写入: 6256041 | 累计读取: 6254540
+[2026-07-29 17:34:41] 运行时间: 10/10 分钟 | 近1分钟写 QPS: 5685 | 近1分钟读 QPS: 5713 | 累计写入: 6597181 | 累计读取: 6597356
+[2026-07-29 17:34:41] ==========================================
+[2026-07-29 17:34:41] 长时间稳定性测试完成！无崩溃，系统运行稳定。
+[2026-07-29 17:34:41] 总写入次数: 6597182
+[2026-07-29 17:34:41] 总读取次数: 6597363
+[2026-07-29 17:34:41] ==========================================
+root@ecs-ec4a:~/cpp-kvstore/build# 
+
+
+### 长时间运行的测试（compact，并且分锁优化之后）
+root@ecs-ec4a:~/cpp-kvstore/build# # 3. 启动 10 分钟长稳定性压测
+./kv_soak 10
+[2026-07-29 18:17:01] 开始 ShardedKVEngine 长时间稳定性压测 (Soak Test)...
+[2026-07-29 18:17:01] 计划运行时长: 10 分钟
+[2026-07-29 18:18:01] 运行时间: 1/10 分钟 | 近1分钟写 QPS: 81029 | 近1分钟读 QPS: 81034 | 累计写入: 4861802 | 累计读取: 4862085
+[2026-07-29 18:19:01] 运行时间: 2/10 分钟 | 近1分钟写 QPS: 77742 | 近1分钟读 QPS: 77712 | 累计写入: 9526368 | 累计读取: 9524866
+[2026-07-29 18:20:01] 运行时间: 3/10 分钟 | 近1分钟写 QPS: 78070 | 近1分钟读 QPS: 78084 | 累计写入: 14210618 | 累计读取: 14209977
+[2026-07-29 18:21:01] 运行时间: 4/10 分钟 | 近1分钟写 QPS: 77937 | 近1分钟读 QPS: 77928 | 累计写入: 18886858 | 累计读取: 18885680
+[2026-07-29 18:22:01] 运行时间: 5/10 分钟 | 近1分钟写 QPS: 78291 | 近1分钟读 QPS: 78255 | 累计写入: 23584357 | 累计读取: 23581049
+[2026-07-29 18:23:01] 运行时间: 6/10 分钟 | 近1分钟写 QPS: 77933 | 近1分钟读 QPS: 77976 | 累计写入: 28260385 | 累计读取: 28259676
+[2026-07-29 18:24:01] 运行时间: 7/10 分钟 | 近1分钟写 QPS: 77866 | 近1分钟读 QPS: 77943 | 累计写入: 32932399 | 累计读取: 32936272
+[2026-07-29 18:25:01] 运行时间: 8/10 分钟 | 近1分钟写 QPS: 77860 | 近1分钟读 QPS: 77815 | 累计写入: 37604027 | 累计读取: 37605219
+[2026-07-29 18:26:01] 运行时间: 9/10 分钟 | 近1分钟写 QPS: 77738 | 近1分钟读 QPS: 77770 | 累计写入: 42268322 | 累计读取: 42271448
+[2026-07-29 18:27:01] 运行时间: 10/10 分钟 | 近1分钟写 QPS: 77988 | 近1分钟读 QPS: 77999 | 累计写入: 46947663 | 累计读取: 46951439
+[2026-07-29 18:27:01] ==========================================
+[2026-07-29 18:27:01] 长时间稳定性测试完成！无崩溃，系统运行稳定。
+[2026-07-29 18:27:01] 总写入次数: 46947670
+[2026-07-29 18:27:01] 总读取次数: 46951450
+[2026-07-29 18:27:01] ==========================================
+root@ecs-ec4a:~/cpp-kvstore/build# 
+

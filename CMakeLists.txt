@@ -59,3 +59,30 @@ else()
     message(WARNING "Google Benchmark NOT found! 'kv_benchmark' target will be skipped.\n"
                     "Please install it via: 'sudo apt-get install libbenchmark-dev'")
 endif()
+
+
+# 8. 构建 500 万级大数据量测试目标: kv_large_scale
+add_executable(kv_large_scale
+    tests/test_large_scale.cpp
+    ${ENGINE_SOURCES}
+)
+
+target_include_directories(kv_large_scale PRIVATE include tests)
+target_link_libraries(kv_large_scale PRIVATE pthread)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(kv_large_scale PRIVATE -O3 -Wall -Wextra)
+endif()
+
+# 9. 构建长时间稳定性测试目标: kv_soak
+add_executable(kv_soak
+    tests/test_soak.cpp
+    ${ENGINE_SOURCES}
+)
+
+target_include_directories(kv_soak PRIVATE include tests)
+target_link_libraries(kv_soak PRIVATE pthread)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(kv_soak PRIVATE -O3 -Wall -Wextra)
+endif()

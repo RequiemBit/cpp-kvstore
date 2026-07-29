@@ -1,4 +1,6 @@
-/home/requiem/kvstore/build/CMakeFiles/kv_server.dir
-/home/requiem/kvstore/build/CMakeFiles/kv_benchmark.dir
-/home/requiem/kvstore/build/CMakeFiles/edit_cache.dir
-/home/requiem/kvstore/build/CMakeFiles/rebuild_cache.dir
+/root/cpp-kvstore/build/CMakeFiles/kv_server.dir
+/root/cpp-kvstore/build/CMakeFiles/kv_benchmark.dir
+/root/cpp-kvstore/build/CMakeFiles/kv_large_scale.dir
+/root/cpp-kvstore/build/CMakeFiles/kv_soak.dir
+/root/cpp-kvstore/build/CMakeFiles/edit_cache.dir
+/root/cpp-kvstore/build/CMakeFiles/rebuild_cache.dir

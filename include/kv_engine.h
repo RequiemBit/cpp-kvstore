@@ -60,6 +60,7 @@ public:
     
     void force_flush();
     void debug_print() const;
+    bool NeedsCompaction(size_t threshold = 5) const;
 
     // 多路归并合并磁盘sst文件
     void Compact();

@@ -216,33 +216,45 @@ void KVEngine::RecoverAllWals() {
     }
 }
 
+bool KVEngine::NeedsCompaction(size_t threshold) const {
+        std::shared_lock<std::shared_mutex> lock(rw_mutex_);
+        return sstables_.size() >= threshold;
+}
+
 // 归并排序合并sst文件
 void KVEngine::Compact() {
-    namespace fs = std::filesystem; // 仅在 Compact() 函数内部生效，干净且隔离
-    std::lock_guard<std::shared_mutex> lock(rw_mutex_);
+    namespace fs = std::filesystem; 
 
-    // 如果 SSTable 数量小于等于 1，无需压缩
-    if (sstables_.size() <= 1) {
-        return;
-    }
-
-    // std::cout << "[Compaction] Starting Major Compaction for " << sstables_.size() << " SSTables..." << std::endl;
-
-    // 1. 构建所有 SSTable 的 Iterator 向量
-    // 注意：sstables_ 中 index 0 是最新生成的，序列号最大
+    std::vector<std::string> old_paths_to_delete;
     std::vector<std::unique_ptr<Iterator>> iterators;
-    size_t total_ssts = sstables_.size();
-    for (size_t i = 0; i < total_ssts; ++i) {
-        // 给每一个 SSTable 赋予 sequence，索引 0 sequence 最大
-        size_t seq = total_ssts - i; 
-        // 修改点：传入 sstables_[i].get() 指针
-        iterators.push_back(std::make_unique<SSTableIterator>(sstables_[i].get(), seq));
-    }
 
-    // 2. 初始化多路归并迭代器
+    // ===================================================================
+    // 阶段 1：加【读锁】快照拿到参与归并的 SSTableReader 指针及【真实物理路径】
+    // ===================================================================
+    {
+        std::shared_lock<std::shared_mutex> read_lock(rw_mutex_);
+
+        if (sstables_.size() <= 1) {
+            return;
+        }
+
+        size_t total_ssts = sstables_.size();
+        for (size_t i = 0; i < total_ssts; ++i) {
+            size_t seq = total_ssts - i; 
+            iterators.push_back(std::make_unique<SSTableIterator>(sstables_[i].get(), seq));
+            
+            // 关键修复：通过刚才添加的 GetFilePath() 直接获取磁盘真正的文件名/路径！
+            if (sstables_[i]) {
+                old_paths_to_delete.push_back(sstables_[i]->GetFilePath()); 
+            }
+        }
+    } // 读锁释放
+
+    // ===================================================================
+    // 阶段 2：在【无锁】状态下进行多路归并排序与新 SSTable 生成
+    // ===================================================================
     MergingIterator merge_iter(std::move(iterators));
 
-    // 3. 创建合并后的目标 SSTable
     ++sst_counter_;
     std::string compact_sst_path = GetSstPath(sst_counter_);
     SSTableBuilder builder(compact_sst_path);
@@ -252,14 +264,10 @@ void KVEngine::Compact() {
     size_t compacted_records = 0;
     size_t dropped_records = 0;
 
-    // 4. 遍历归并数据流（去重 + 墓碑清理）
     while (merge_iter.Valid()) {
         auto entry = merge_iter.entry();
 
-        // 由于归并流按 Key 排序（同 Key 按 sequence 从大到小），
-        // 遇到同 Key 时，第一条必定是最新的 Version/墓碑！
         if (has_last_key && entry.key == last_key) {
-            // 抛弃旧版本数据
             dropped_records++;
             merge_iter.Next();
             continue;
@@ -268,14 +276,12 @@ void KVEngine::Compact() {
         last_key = entry.key;
         has_last_key = true;
 
-        // 如果最新版本是墓碑，彻底清理（因为这是 Major Compaction 包含全量 SSTable）
         if (entry.type == ValueType::kTypeDeletion) {
-            dropped_records++; // 墓碑本身及其旧版本均丢弃
+            dropped_records++; 
             merge_iter.Next();
             continue;
         }
 
-        // 有效最新数据落盘
         builder.Add(Slice(entry.key), Slice(entry.value), entry.type);
         compacted_records++;
         merge_iter.Next();
@@ -283,21 +289,29 @@ void KVEngine::Compact() {
 
     builder.Finish();
 
-    // 5. 替换 SSTables 句柄与磁盘物理文件清理
-    std::vector<std::string> old_sst_paths;
-    // 假设全部旧 SSTable 均参与了 Compaction，我们可以通过遍历磁盘或者由 SSTableReader 记录路径清理
-    // 这里简单清理原参与归并的 SSTable 内存句柄
-    sstables_.clear();
-
-    // 打开压缩后生成的新 SSTable
+    // ===================================================================
+    // 阶段 3：加【写锁】原子替换内存句柄
+    // ===================================================================
     auto reader = SSTableReader::Open(compact_sst_path);
-    if (reader) {
-        sstables_.push_back(std::move(reader));
+    if (!reader) {
+        return; 
     }
 
-    // std::cout << "[Compaction] Finished! Saved " << compacted_records 
-    //           << " active records, dropped " << dropped_records 
-    //           << " obsolete/tombstone records." << std::endl;
+    {
+        std::unique_lock<std::shared_mutex> write_lock(rw_mutex_);
+        sstables_.clear();
+        sstables_.push_back(std::move(reader));
+    } // 写锁释放
+
+    // ===================================================================
+    // 阶段 4：在【无锁】状态下精准物理删除旧 SSTable 文件
+    // ===================================================================
+    for (const auto& path : old_paths_to_delete) {
+        if (!path.empty() && path != compact_sst_path) {
+            std::error_code ec;
+            fs::remove(path, ec); // 这次将准确抹去真实的磁盘物理文件！
+        }
+    }
 }
 
 // 启动一个kvengine -> LoadExistingSSTables加载原有sst文件，RecoverAllWals日志恢复数据，open创建新wal文件
