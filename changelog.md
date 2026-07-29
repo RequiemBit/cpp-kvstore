@@ -173,3 +173,31 @@ KVEngineMTFixture/RandomReadMT/1024/real_time/threads:4        1401 ns         1
 KVEngineMTFixture/RandomReadMT/1024/real_time/threads:8        1593 ns         1601 ns       439544 bytes_per_second=4.88285Gi/s items_per_second=5.02195M/s
 KVEngineMTFixture/RandomReadMT/1024/real_time/threads:16       2871 ns         2883 ns       260464 bytes_per_second=5.41855Gi/s items_per_second=5.57291M/s
 root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# 
+
+
+锁分片之后的数据（一个大引擎管理多个小引擎，将大锁细分到小引擎中）
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# ./kv_benchmark
+2026-07-29T00:46:15+08:00
+Running ./kv_benchmark
+Run on (20 X 2918.4 MHz CPU s)
+CPU Caches:
+  L1 Data 48 KiB (x10)
+  L1 Instruction 32 KiB (x10)
+  L2 Unified 1280 KiB (x10)
+  L3 Unified 24576 KiB (x1)
+Load Average: 0.15, 0.07, 0.01
+--------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                Time             CPU   Iterations UserCounters...
+--------------------------------------------------------------------------------------------------------------------------
+BM_SequentialWrite/128                                                1280 ns         1280 ns       466245 bytes_per_second=110.297Mi/s items_per_second=781.452k/s
+BM_SequentialWrite/1024                                               4415 ns         4414 ns       157432 bytes_per_second=225.576Mi/s items_per_second=226.565k/s
+BM_RandomWrite/128                                                    1743 ns         1751 ns       475308 bytes_per_second=80.6015Mi/s items_per_second=571.06k/s
+BM_RandomWrite/1024                                                   4639 ns         4649 ns       153641 bytes_per_second=214.175Mi/s items_per_second=215.114k/s
+BM_RandomRead/128                                                      708 ns          715 ns       950849 bytes_per_second=197.426Mi/s items_per_second=1.39876M/s
+BM_RandomRead/1024                                                     955 ns          960 ns       697778 bytes_per_second=1.01283Gi/s items_per_second=1.04168M/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:1        1014 ns         1021 ns       679815 bytes_per_second=982.317Mi/s items_per_second=986.622k/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:2        1049 ns         1054 ns       698372 bytes_per_second=1.85362Gi/s items_per_second=1.90643M/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:4        1084 ns         1089 ns       628520 bytes_per_second=3.5874Gi/s items_per_second=3.6896M/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:8        1223 ns         1231 ns       589904 bytes_per_second=6.35888Gi/s items_per_second=6.54004M/s
+ShardedKVEngineMTFixture/RandomReadMT/1024/real_time/threads:16       1562 ns         1573 ns       452880 bytes_per_second=9.9567Gi/s items_per_second=10.2403M/s
+root@LAPTOP-CEH85GLR:/home/requiem/kvstore/build# 
