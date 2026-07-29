@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/kv_large_scale.dir/tests/test_large_scale.cpp.o CMakeFiles/kv_large_scale.dir/src/kv_engine.cpp.o CMakeFiles/kv_large_scale.dir/src/wal_logger.cpp.o CMakeFiles/kv_large_scale.dir/src/sstable_builder.cpp.o CMakeFiles/kv_large_scale.dir/src/sstable_reader.cpp.o CMakeFiles/kv_large_scale.dir/src/iterator.cpp.o -o kv_large_scale  -lpthread 
