@@ -16,7 +16,7 @@ enum class ValueType : uint8_t {
 };
 
 /**
- * @brief 工业级 Slice 类（参考 LevelDB 设计）
+ * @brief 工业级 Slice 类
  * 零拷贝的数据视图类，仅持有指向外部内存的指针和长度。
  * 注意：Slice 本身不持有内存生命周期，使用者需保证底层数据的存活时间长于 Slice。
  */
@@ -113,8 +113,6 @@ inline std::ostream& operator<<(std::ostream& os, const Slice& s) {
 }
 
 #endif // SLICE_H
-
-
 
 
 

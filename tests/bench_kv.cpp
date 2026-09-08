@@ -10,24 +10,24 @@ namespace fs = std::filesystem;
 
 namespace {
 
-// 辅助函数：格式化 key（保持与原测试一致）
-inline std::string MakeKey(size_t i) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "key_%010zu", i);
-    return std::string(buf);
-}
-
-// 辅助函数：清理测试目录
-void Cleanup(const std::string& path) {
-    if (fs::exists(path)) {
-        fs::remove_all(path);
+    // 辅助函数：格式化 key（保持与原测试一致）
+    inline std::string MakeKey(size_t i) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "key_%010zu", i);
+        return std::string(buf);
     }
-}
 
-// 默认分片数设为 16
-constexpr size_t kShardNum = 16;
-// 默认每个 Shard 的 MemTable 阈值（原 threshold 1000）
-constexpr size_t kMemTableThreshold = 1000;
+    // 辅助函数：清理测试目录
+    void Cleanup(const std::string& path) {
+        if (fs::exists(path)) {
+            fs::remove_all(path);
+        }
+    }
+
+    // 默认分片数设为 16
+    constexpr size_t kShardNum = 16;
+    // 默认每个 Shard 的 MemTable 阈值（原 threshold 1000）
+    constexpr size_t kMemTableThreshold = 1000;
 
 } // namespace
 

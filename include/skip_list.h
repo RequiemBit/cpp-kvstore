@@ -174,7 +174,23 @@ public:
         }
         return false;
     }
-    
+
+    // 找到第一个 Key >= target 的节点指针
+    SkipListNode<K, V>* find_greater_or_equal(const K& key) const {
+        SkipListNode<K, V>* x = head;
+        int level = current_level - 1;
+        while (level >= 0) {
+            SkipListNode<K, V>* next = x->forward[level];
+            if (next != nullptr && next->key < key) {
+                x = next; // 当前节点的下一个节点比 target 小，继续在当前层向右走
+            } else {
+                level--;  // 向下落一层
+            }
+        }
+        // 退出循环时，x 是小于 target 的最大节点，x->forward[0] 就是第一个 >= target 的节点
+        return x->forward[0];
+    }
+
     // 打印跳表结构（调试用）
     void display() const {
         std::cout << "\n=== SkipList Structure (Top-Down) ===" << std::endl;

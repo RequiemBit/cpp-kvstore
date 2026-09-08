@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <unordered_set>
 #include "iterator.h"
 
 // 构造engine的过程
@@ -71,7 +72,6 @@ void KVEngine::put(const std::string& key, const std::string& value) {
 }
 
 // 查数据，先从内存找，再从sst中找
-// 查数据，先从内存找，再从sst中找
 bool KVEngine::get(const std::string& key, std::string& value) const {
     std::shared_lock<std::shared_mutex> lock(rw_mutex_);
 
@@ -79,28 +79,28 @@ bool KVEngine::get(const std::string& key, std::string& value) const {
     TableValue mem_val;
     if (skiplist_.get(key, mem_val)) {
         if (mem_val.type == ValueType::kTypeDeletion) {
-            return false; // 命中内存墓碑！说明该 Key 在最新的操作中已被删除
+            return false; 
         }
         value = mem_val.value;
-        return true; // 找到正常值
+        return true; 
     }
 
     // 2. 第二优先级：检索 SSTables (磁盘，从最新到最旧)
+    // 🌟 核心修复：sstables_[0] 已经是最新文件，直接正向遍历 sstables_ 即可！
     for (const auto& reader : sstables_) {
         ValueType type;
         std::string val;
         
-        // 关键改动：传入 ValueType 指针以识别 SSTable 内部的墓碑标记
         if (reader->Get(Slice(key), &val, &type)) {
             if (type == ValueType::kTypeDeletion) {
-                return false; // 命中磁盘墓碑！终止向下层 SSTable 穿透检索
+                return false; // 最新 SSTable 存的是墓碑，立即阻断并返回不存在
             }
-            value = val; // 命中有效数据
-            return true;
+            value = val; 
+            return true; // 最新 SSTable 存的是有效值，返回 true
         }
     }
 
-    return false; // 内存和磁盘均未找到
+    return false; 
 }
 
 // 删除一个键值，实际上是特殊的put操作
@@ -136,18 +136,17 @@ void KVEngine::FlushMemTable() {
     ++sst_counter_;
     std::string sst_path = GetSstPath(sst_counter_);
 
-    // std::cout << "[KVEngine] MemTable limit reached. Flushing to " << sst_path << "..." << std::endl;
-
     SSTableBuilder builder(sst_path);
     auto all_kv = skiplist_.dump_all(); 
     for (const auto& [k, v] : all_kv) {
-        // 关键改动：将 v.type (kTypeValue 或 kTypeDeletion) 传入 SSTableBuilder
         builder.Add(Slice(k), Slice(v.value), v.type);
     }
     builder.Finish();
 
-    auto reader = SSTableReader::Open(sst_path);
+    // 🌟 核心改动：把 sst_counter_ 作为 sequence 传给 Open()
+    auto reader = SSTableReader::Open(sst_path, sst_counter_);
     if (reader) {
+        // 保持最新的 SSTable 放在 sstables_ 的最开头 (index 0)
         sstables_.insert(sstables_.begin(), std::move(reader));
     }
 
@@ -159,8 +158,6 @@ void KVEngine::FlushMemTable() {
     skiplist_.clear();
 
     WalLogger::RemoveWalFile(old_wal_path);
-
-    // std::cout << "[KVEngine] Flush complete. SSTables active count: " << sstables_.size() << std::endl;
 }
 
 // 加载现有的sst文件，将reader对象指针加入sstables_内，每个reader维护了index_entries(index_block内的内容)
@@ -179,10 +176,21 @@ void KVEngine::LoadExistingSSTables() {
         }
     }
 
+    // 按文件名字典序升序排列（如 000001.sst, 000002.sst...）
     std::sort(sst_files.begin(), sst_files.end());
 
+    // 反向遍历 (rbegin -> rend)：文件名最大的（最新）最先加入 sstables_
+    // 这样保证 sstables_[0] 永远是最新的文件
     for (auto it = sst_files.rbegin(); it != sst_files.rend(); ++it) {
-        auto reader = SSTableReader::Open(*it);
+        // 🌟 解析出该文件的 sequence 编号
+        std::filesystem::path p(*it);
+        size_t seq = 0;
+        try {
+            seq = std::stoull(p.stem().string());
+        } catch (...) {}
+
+        // 🌟 核心改动：把解析出的 seq 传给 Open()
+        auto reader = SSTableReader::Open(*it, seq);
         if (reader) {
             sstables_.push_back(std::move(reader));
         }
@@ -216,6 +224,7 @@ void KVEngine::RecoverAllWals() {
     }
 }
 
+// 检查是否需要合并
 bool KVEngine::NeedsCompaction(size_t threshold) const {
         std::shared_lock<std::shared_mutex> lock(rw_mutex_);
         return sstables_.size() >= threshold;
@@ -223,6 +232,11 @@ bool KVEngine::NeedsCompaction(size_t threshold) const {
 
 // 归并排序合并sst文件
 void KVEngine::Compact() {
+    auto start_time = std::chrono::steady_clock::now();
+    
+    size_t total_ssts = 0;
+
+
     namespace fs = std::filesystem; 
 
     std::vector<std::string> old_paths_to_delete;
@@ -238,18 +252,20 @@ void KVEngine::Compact() {
             return;
         }
 
-        size_t total_ssts = sstables_.size();
+        total_ssts = sstables_.size();
         for (size_t i = 0; i < total_ssts; ++i) {
-            size_t seq = total_ssts - i; 
-            iterators.push_back(std::make_unique<SSTableIterator>(sstables_[i].get(), seq));
+            // i 越大说明越新，sequence 就应该越大！
+            // 如果你的 SSTableReader 实现了 GetSequence()，强烈推荐：size_t seq = sstables_[i]->GetSequence();
+            size_t seq = sstables_[i]->GetSequence(); // 旧 SSTable 给小 seq(1)，新 SSTable 给大 seq(total_ssts)
             
-            // 关键修复：通过刚才添加的 GetFilePath() 直接获取磁盘真正的文件名/路径！
+            iterators.push_back(std::make_unique<SSTableIterator>(sstables_[i], seq));
+            
             if (sstables_[i]) {
                 old_paths_to_delete.push_back(sstables_[i]->GetFilePath()); 
             }
         }
     } // 读锁释放
-
+    
     // ===================================================================
     // 阶段 2：在【无锁】状态下进行多路归并排序与新 SSTable 生成
     // ===================================================================
@@ -299,8 +315,26 @@ void KVEngine::Compact() {
 
     {
         std::unique_lock<std::shared_mutex> write_lock(rw_mutex_);
-        sstables_.clear();
-        sstables_.push_back(std::move(reader));
+        
+        // 1. 创建一个哈希集合或直接用 old_paths_to_delete 快速匹配
+        // 也可以直接比对 shared_ptr 地址，但比对文件路径或指针更直观
+        std::unordered_set<std::string> paths_to_remove(old_paths_to_delete.begin(), old_paths_to_delete.end());
+
+        // 2. 过滤掉那些已经参与合并的旧 SSTable，同时完整保留空窗期新刷盘进去的 SSTable！
+        std::vector<std::shared_ptr<SSTableReader>> remaining_sstables;
+        for (const auto& sst : sstables_) {
+            if (sst && paths_to_remove.find(sst->GetFilePath()) == paths_to_remove.end()) {
+                // 这个 SSTable 没有参与本次合并，或者是在空窗期新生成的，必须保留！
+                remaining_sstables.push_back(sst);
+            }
+        }
+
+        // 3. 将刚合并生成的新 SSTable 压入列表（通常新 SSTable 放在最前面或按逻辑排列）
+        // 视你的 sstables_ 顺序而定，如果是按从新到旧排列，通常新生成的放在最前：
+        remaining_sstables.insert(remaining_sstables.begin(), std::move(reader));
+
+        // 4. 更新全局列表
+        sstables_ = std::move(remaining_sstables);
     } // 写锁释放
 
     // ===================================================================
@@ -309,10 +343,40 @@ void KVEngine::Compact() {
     for (const auto& path : old_paths_to_delete) {
         if (!path.empty() && path != compact_sst_path) {
             std::error_code ec;
-            fs::remove(path, ec); // 这次将准确抹去真实的磁盘物理文件！
+            fs::remove(path, ec);
         }
     }
+
+
+    auto end_time = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    std::cout << "[Compaction] 本次合并耗时: " << duration << " ms, 合并前 SST 数量: " << total_ssts << std::endl;
 }
+
+// 此处获取子引擎内部跳表和磁盘中的所有数据，将引擎的sstables_的成员交给shared_ptr管理，这里进行一次浅拷贝，防止compact删除句柄
+std::unique_ptr<Iterator> KVEngine::NewIterator() {
+    std::shared_lock<std::shared_mutex> read_lock(rw_mutex_);
+
+    std::vector<std::unique_ptr<Iterator>> children;
+
+    // 1. 内存 SkipList Iterator
+    children.push_back(std::make_unique<SkipListIterator>(&skiplist_, SIZE_MAX));
+
+    // 2. 磁盘 SSTable Iterators (直接传 shared_ptr)
+    auto sst_snapshot = sstables_;
+    for (size_t i = 0; i < sst_snapshot.size(); ++i) {
+        if (sst_snapshot[i]) {
+            size_t seq = sst_snapshot[i]->GetSequence();
+            children.push_back(std::make_unique<SSTableIterator>(
+                sst_snapshot[i], // 🌟 直接传入 std::shared_ptr，引用计数 +1，生命周期安全托管！
+                seq
+            ));
+        }
+    }
+
+    return std::make_unique<MergingIterator>(std::move(children));
+}
+
 
 // 启动一个kvengine -> LoadExistingSSTables加载原有sst文件，RecoverAllWals日志恢复数据，open创建新wal文件
 

@@ -1,0 +1,24 @@
+# 忽略 build 构建目录
+build/
+
+# 常见的 CMake 构建产物
+cmake-build-debug/
+cmake-build-release/
+CMakeCache.txt
+CMakeFiles/
+
+# 编译生成的中间文件和库文件
+*.o
+*.so
+*.a
+*.dylib
+*.dll
+*.exe
+
+# IDE 配置文件
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db

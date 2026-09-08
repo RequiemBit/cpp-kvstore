@@ -80,42 +80,45 @@ void SSTableBuilder::FlushBlock() {
 bool SSTableBuilder::Finish() {
     if (finished_) return false;
 
-    // 1. 刷出最后一个可能未满的 Data Block
-    FlushBlock();
+    // 1. 如果内存缓冲区 block_buffer_ 里还有没刷盘的尾部数据，先刷盘
+    if (!block_buffer_.empty()) {
+        FlushBlock();
+    }
+
+    // 检查是否有数据写入
+    if (index_entries_.empty()) {
+        finished_ = true;
+        file_.close();
+        return false;
+    }
 
     // 2. 构建并写入 Index Block
     uint64_t index_offset = current_offset_;
-    std::string index_buffer;
-
     for (const auto& entry : index_entries_) {
-        uint32_t key_len = static_cast<uint32_t>(entry.max_key.size());
-        index_buffer.append(reinterpret_cast<const char*>(&key_len), sizeof(key_len));
-        index_buffer.append(entry.max_key.data(), entry.max_key.size());
-        index_buffer.append(reinterpret_cast<const char*>(&entry.offset), sizeof(entry.offset));
-        index_buffer.append(reinterpret_cast<const char*>(&entry.size), sizeof(entry.size));
+        uint32_t k_len = static_cast<uint32_t>(entry.max_key.size());
+        uint64_t offset = entry.offset;
+        uint64_t size = entry.size;
+
+        file_.write(reinterpret_cast<const char*>(&k_len), sizeof(k_len));
+        file_.write(entry.max_key.data(), k_len);
+        file_.write(reinterpret_cast<const char*>(&offset), sizeof(offset));
+        file_.write(reinterpret_cast<const char*>(&size), sizeof(size));
+
+        // 累加 current_offset_，这样才能正确计算出 index_size！
+        current_offset_ += (sizeof(k_len) + k_len + sizeof(offset) + sizeof(size));
     }
+    uint64_t index_size = current_offset_ - index_offset;
 
-    uint64_t index_size = index_buffer.size();
-    file_.write(index_buffer.data(), index_buffer.size());
-    current_offset_ += index_size;
-
-    // 3. 构建并写入 Footer (固定 24 字节)
+    // 补充完整的 写入 Footer 逻辑！
     Footer footer;
     footer.index_offset = index_offset;
     footer.index_size = index_size;
     footer.magic_number = kSSTableMagicNumber;
 
-    file_.write(reinterpret_cast<const char*>(&footer), sizeof(footer));
-    current_offset_ += sizeof(footer);
+    file_.write(reinterpret_cast<const char*>(&footer), sizeof(Footer));
 
-    // 4. 落盘并关闭
     file_.flush();
     file_.close();
     finished_ = true;
-
-    // std::cout << "[SSTableBuilder] Successfully built SSTable: " << filename_
-    //           << " (Size: " << current_offset_ << " bytes, Blocks: " 
-    //           << index_entries_.size() << ")" << std::endl;
-
     return true;
 }

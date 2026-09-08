@@ -3,10 +3,13 @@
 
 #include "slice.h"
 #include "sstable_reader.h"
+#include "skip_list.h"
+#include "types.h"
 #include <memory>
 #include <string>
 #include <vector>
 #include <queue>
+#include <algorithm>
 
 // 迭代器输出的条目元素
 struct IteratorEntry {
@@ -23,87 +26,83 @@ public:
     virtual bool Valid() const = 0;
     virtual void Next() = 0;
     virtual IteratorEntry entry() const = 0;
+    // 定位到第一个 key >= target 的位置
+    virtual void Seek(const std::string& target) = 0;
 };
 
-// 1. 单个 SSTable 遍历迭代器
+// SSTable 磁盘迭代器声明
 class SSTableIterator : public Iterator {
 public:
-    // 构造函数
-    explicit SSTableIterator(SSTableReader* reader, size_t sequence);
-    
-    // 检查当前的状态
-    bool Valid() const override;
+    SSTableIterator(std::shared_ptr<SSTableReader> reader, size_t sequence);
 
-    // 检测当前block有没有数据读了，没有就推进到下一个block，没有block就valid_=false直接return，有数据读就加载到current_entry_
+    bool Valid() const override;
     void Next() override;
-    // 直接返回current_entry_，当前解析出来的数据
     IteratorEntry entry() const override;
+    void Seek(const std::string& target) override;
 
 private:
     void ParseCurrentBlock();
+    void ParseNextEntry();
 
-    // reader指针，用来读取一个sst文件
-    SSTableReader* reader_{nullptr}; // 修改：原始指针
-    // 这个sst文件的时间戳
-    size_t sequence_;
-    
-    // 当前读的是第几个data_block
+    std::shared_ptr<SSTableReader> reader_;
+    size_t sequence_{0};
     size_t current_block_idx_{0};
-    // 当前data_block的完整字节流
-    std::string current_block_data_;
-    // 当前data_block内部的游标
     size_t current_offset_{0};
-    
-    // 是否还有数据需要读取的标志
-    bool valid_{false};
-    // 当前解析出来的某一条数据
+    std::string current_block_data_;
     IteratorEntry current_entry_;
+    bool valid_{false};
 };
 
-// 2. 多路归并迭代器 (MergingIterator)
+// 内存快照安全迭代器声明（支持按需传入 lower_bound，避免全表深拷贝触发 bad_alloc）
+class SkipListIterator : public Iterator {
+public:
+    // sequence 传入 SIZE_MAX，确保在多路归并时 MemTable 中的最新数据拥有最高优先级
+    // 支持传入 lower_bound，默认从头开始
+    explicit SkipListIterator(const SkipList<std::string, TableValue>* list, 
+                              size_t sequence = SIZE_MAX, 
+                              const std::string& lower_bound = "");
+
+    bool Valid() const override;
+    void Next() override;
+    IteratorEntry entry() const override;
+    // 实现跳转定位
+    void Seek(const std::string& target) override;
+
+private:
+    std::vector<IteratorEntry> entries_; // 本地快照数据，与底层 SkipList 完全解耦！
+    size_t index_{0};                    // 当前遍历的下标
+    size_t sequence_{SIZE_MAX};
+};
+
+// 多路归并迭代器声明
 class MergingIterator : public Iterator {
 public:
-    // 接收所有的子迭代器。在构造时，它会遍历 children_
-    // 让每一个子迭代器调用 Next() 或 entry() 拿到第一条数据，然后把它们全部塞进 min_heap_ 中，完成堆的初始化
     explicit MergingIterator(std::vector<std::unique_ptr<Iterator>> children);
 
-    // 检查归并流是否还有数据
     bool Valid() const override;
-    // 核心：推进到下一条全局最小的数据
     void Next() override;
-    // 获取当前最小/最新的元素
     IteratorEntry entry() const override;
+    void Seek(const std::string& target) override;
 
 private:
     struct HeapItem {
-        // 这个元素来自哪一个子迭代器（即 children_ 数组的下标）
         size_t child_index;
-        // 子迭代器当前正准备吐出的那条真实数据（包含 Key, Value, Type, Sequence）
         IteratorEntry entry;
         
-        // operator> 用于 std::greater 构造 Min-Heap（小顶堆）
         bool operator>(const HeapItem& other) const {
             if (entry.key != other.entry.key) {
-                return entry.key > other.entry.key; // Key 字典序小的排前面
+                return entry.key > other.entry.key;
             }
-            // 同 Key 时，sequence 较大的（更新的数据）应该先被吐出来
-            // 在 std::greater 下，operator> 为 true 代表 priority 更低（排在后面）
             return entry.sequence < other.entry.sequence; 
         }
     };
 
-    // 所有参与归并的子迭代器集合（比如 5 个 SSTable，就有 5 个 SSTableIterator）
-    std::vector<std::unique_ptr<Iterator>> children_;
-    // 优先队列，小顶堆
-    std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<HeapItem>> min_heap_;
-    
-    // 归并迭代器是否有效
-    bool valid_{false};
-    // 当前的小顶堆的堆顶元素
-    IteratorEntry current_entry_;
-
-    // 检查小顶堆是否为空。如果不为空，就把堆顶元素赋值给 current_entry_；如果为空，就把 valid_ 设为 false
     void FindMin();
+
+    std::vector<std::unique_ptr<Iterator>> children_;
+    std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<HeapItem>> min_heap_;
+    bool valid_{false};
+    IteratorEntry current_entry_;
 };
 
 #endif // KV_ITERATOR_H

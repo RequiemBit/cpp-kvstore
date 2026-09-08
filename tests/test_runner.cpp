@@ -7,6 +7,13 @@
 #include <string>
 #include <algorithm>
 #include <cassert>
+#include <cassert>
+#include <iostream>
+#include "skip_list.h"
+#include "iterator.h"
+#include "spatial_key.h"
+#include "voxel_value.h"
+
 
 namespace fs = std::filesystem;
 
@@ -217,11 +224,86 @@ void TestCompaction() {
     }
 }
 
+// 
+// 🌟 新增：空间范围查询 / Iterator Seek 专项测试
+void TestSpatialRangeQuery() {
+    std::cout << "\n==========================================" << std::endl;
+    std::cout << "[Test] Running TestSpatialRangeQuery..." << std::endl;
+    std::cout << "==========================================" << std::endl;
+
+    std::string test_db_dir = "./test_spatial_db";
+    std::filesystem::remove_all(test_db_dir); // 清理旧数据
+
+    {
+        KVEngine engine(test_db_dir);
+
+        // 1. 写入批次 1 (旧数据) 并 Flush 到 SSTable 1 (seq = 1)
+        engine.put("point_010", "val_10_old");
+        engine.put("point_030", "val_30");
+        engine.put("point_050", "val_50");
+        engine.FlushMemTable();
+
+        // 2. 写入批次 2 (新数据)，更新 point_010 并且新增 point_020 (留在 MemTable，seq = SIZE_MAX)
+        engine.put("point_010", "val_10_new"); 
+        engine.put("point_020", "val_20");
+
+        // 3. 获取全局合并迭代器
+        auto it = engine.NewIterator();
+
+        // ----------------------------------------------------
+        // 场景 A: 测试精准 Seek 与同 Key 取新 (Sequence 机制)
+        // ----------------------------------------------------
+        it->Seek("point_010");
+        assert(it->Valid());
+        assert(it->entry().key == "point_010");
+        // 必须优先吐出 MemTable 里的最新值 val_10_new
+        assert(it->entry().value == "val_10_new"); 
+        std::cout << "  -> Seek('point_010') passed. Value is latest: " << it->entry().value << std::endl;
+
+        // ----------------------------------------------------
+        // 场景 B: 测试 Seek 跳跃到中间不存在的 Key
+        // 目标定位到第一个 >= "point_015" 的节点，即 "point_020"
+        // ----------------------------------------------------
+        it->Seek("point_015");
+        assert(it->Valid());
+        assert(it->entry().key == "point_020");
+        assert(it->entry().value == "val_20");
+        std::cout << "  -> Seek('point_015') passed. Found next >= key: " << it->entry().key << std::endl;
+
+        // ----------------------------------------------------
+        // 场景 C: 范围遍历测试 (从 point_020 遍历到 point_050)
+        // ----------------------------------------------------
+        std::vector<std::string> scan_keys;
+        while (it->Valid() && it->entry().key <= "point_050") {
+            scan_keys.push_back(it->entry().key);
+            it->Next();
+        }
+
+        // 验证遍历到的顺序：point_020 -> point_030 -> point_050
+        assert(scan_keys.size() == 3);
+        assert(scan_keys[0] == "point_020");
+        assert(scan_keys[1] == "point_030");
+        assert(scan_keys[2] == "point_050");
+        std::cout << "  -> Range Scan ['point_020' ~ 'point_050'] passed. Total keys: " << scan_keys.size() << std::endl;
+
+        // ----------------------------------------------------
+        // 场景 D: Seek 超出范围测试
+        // ----------------------------------------------------
+        it->Seek("point_099");
+        assert(!it->Valid()); // 应该无效
+        std::cout << "  -> Seek('point_099') passed. Out of bound correctly." << std::endl;
+    }
+
+    std::filesystem::remove_all(test_db_dir); // 清理测试产生的文件
+    std::cout << "[PASS] TestSpatialRangeQuery successfully passed!" << std::endl;
+}
+
 void RunAllTests() {
     TestMemoryTombstone();
     TestSSTableDiskTombstone();
     TestFullIntegration();
     TestCompaction();
+    TestSpatialRangeQuery();
     std::cout << "\n==========================================================" << std::endl;
     std::cout << " 🎉 All Modules & Disk Tombstone Tests PASSED!           " << std::endl;
     std::cout << "==========================================================" << std::endl;

@@ -1,6 +1,6 @@
 #include "sstable_reader.h"
 
-SSTableReader::SSTableReader(const std::string& filename) : filename_(filename) {}
+SSTableReader::SSTableReader(const std::string& filename, size_t sequence) : filename_(filename) , sequence_(sequence){}
 
 SSTableReader::~SSTableReader() {
     if (fd_ != -1) {
@@ -9,30 +9,37 @@ SSTableReader::~SSTableReader() {
     }
 }
 
-// 打开一个 sst 文件的流程：先打开 fd，再读 footer，最后读 index_block
-std::unique_ptr<SSTableReader> SSTableReader::Open(const std::string& filename) {
-    auto reader = std::unique_ptr<SSTableReader>(new SSTableReader(filename));
+std::unique_ptr<SSTableReader> SSTableReader::Open(const std::string& filename, size_t sequence) {
+    // 1. 使用 new 创建私有构造的实例，并传入 sequence
+    auto reader = std::unique_ptr<SSTableReader>(new SSTableReader(filename, sequence));
     
-    // 1. 使用 POSIX open 获取文件描述符
+    // 2. 使用 POSIX open 获取文件描述符
     reader->fd_ = open(filename.c_str(), O_RDONLY);
     if (reader->fd_ == -1) {
         std::cerr << "[SSTableReader Error] Cannot open file: " << filename << std::endl;
         return nullptr;
     }
 
-    // 2. 解析 Footer
+    // 3. 解析 Footer
     Footer footer;
     if (!reader->ReadFooter(&footer)) {
-        std::cerr << "[SSTableReader Error] Invalid footer or magic number mismatch!" << std::endl;
+        std::cerr << "[SSTableReader Error] Invalid footer or magic number mismatch in " 
+                  << filename << std::endl;
+        close(reader->fd_); // 🌟 注意：失败时及时关闭 fd，防止描述符泄漏
+        reader->fd_ = -1;
         return nullptr;
     }
 
-    // 3. 加载 Index Block
+    // 4. 加载 Index Block
     if (!reader->LoadIndexBlock(footer)) {
-        std::cerr << "[SSTableReader Error] Failed to load index block!" << std::endl;
+        std::cerr << "[SSTableReader Error] Failed to load index block from " 
+                  << filename << std::endl;
+        close(reader->fd_); // 🌟 失败时及时关闭 fd
+        reader->fd_ = -1;
         return nullptr;
     }
 
+    // 5. 校验通过，返回初始化成功的 unique_ptr
     return reader;
 }
 
@@ -116,16 +123,6 @@ bool SSTableReader::Get(const Slice& key, std::string* value, ValueType* type) {
 
     // 3. 在 Data Block 内检索并获取 Value 和 ValueType
     return SearchInDataBlock(block_data, key, value, type);
-}
-
-// 兼容旧调用的 Get 重载
-bool SSTableReader::Get(const Slice& key, std::string* value) {
-    ValueType type;
-    if (Get(key, value, &type)) {
-        // 如果是墓碑标记，对上层逻辑直接表现为不存在 (false)
-        return type != ValueType::kTypeDeletion;
-    }
-    return false;
 }
 
 // 在 DataBlock 内部检索 Key
